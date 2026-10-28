@@ -3,12 +3,14 @@
 use GlpiPlugin\Gitpull\AtomicJson;
 use GlpiPlugin\Gitpull\Manifest;
 use GlpiPlugin\Gitpull\StateStore;
+use GlpiPlugin\Gitpull\Diagnostics;
 
 $dir = sys_get_temp_dir() . '/gitpull-test-' . bin2hex(random_bytes(6));
 mkdir($dir, 0700, true);
+define('GLPI_ROOT', $dir);
 define('GLPI_VAR_DIR', $dir);
 define('GLPI_CONFIG_DIR', $dir);
-foreach (['AtomicJson', 'Paths', 'Manifest', 'StateStore'] as $class) {
+foreach (['AtomicJson', 'Paths', 'Manifest', 'StateStore', 'Diagnostics'] as $class) {
     require dirname(__DIR__) . '/src/' . $class . '.php';
 }
 $count = 0;
@@ -57,6 +59,40 @@ try {
     file_put_contents($file, '{broken');
     $expect(fn() => $manifest->all(), JsonException::class);
     $check(file_get_contents($file) === '{broken', 'JSON invalide préservé');
+    $expect(fn() => AtomicJson::read($file), JsonException::class);
+    file_put_contents($file, '{"version":1,"repositories":[]}%' );
+    $expect(fn() => $manifest->all(false), JsonException::class);
+    $r = [
+        'id' => 'gitpull', 'url' => 'https://github.com/darkelle24/glpi-git-pull.git',
+        'path' => '/var/www/glpi/plugins/gitpull', 'post_pull' => null, 'hard_pull' => false,
+        'auto_check' => true, 'auto_pull' => false, 'check_interval' => 60, 'pull_interval' => 1440,
+    ];
+    AtomicJson::write(PathsForTest(), ['version' => 1, 'repositories' => [$r]]);
+    $default = new Manifest();
+    $check(isset($default->all(false)['gitpull']), 'Un dépôt bloqué reste visible dans la liste');
+    $expect(fn() => $default->all(), InvalidArgumentException::class);
+    $configHash = hash_file('sha256', PathsForTest());
+    $diagnostic = Diagnostics::report();
+    $check($diagnostic['path'] === PathsForTest(), 'Chemin exact affiché');
+    $check($diagnostic['count'] === 1 && $diagnostic['validation_error'] !== null, 'Diagnostic de la cible rejetée');
+    for ($i = 0; $i < 55; ++$i) {
+        Diagnostics::log('test', 'event-' . $i);
+    }
+    $diagnostic = Diagnostics::report();
+    $check(count($diagnostic['events']) === 50, 'Journal borné à 50 événements');
+    $check($diagnostic['events'][0]['message'] === 'event-54', 'Événements les plus récents en premier');
+    $check(hash_file('sha256', PathsForTest()) === $configHash, 'Diagnostic et journal sans modification du manifeste');
+    $bad = $r;
+    $bad['auto_check'] = 'true';
+    AtomicJson::write(PathsForTest(), ['version' => 1, 'repositories' => [$bad]]);
+    $expect(fn() => $default->all(false), InvalidArgumentException::class);
+    file_put_contents(PathsForTest(), '{"version":1,"repositories":[]}%' );
+    $diagnostic = Diagnostics::report();
+    $check(str_contains($diagnostic['validation_error'], 'JSON invalide'), 'JSON avec suffixe pourcent signalé');
+    $check($diagnostic['count'] === null, 'JSON corrompu non présenté comme une liste vide');
+    unlink(PathsForTest());
+    $diagnostic = Diagnostics::report();
+    $check(!$diagnostic['exists'] && $diagnostic['count'] === null, 'Fichier absent clairement signalé');
     echo "$count vérifications OK\n";
 } finally {
     // Only the unique test directory created above, never an installation directory.
@@ -68,4 +104,9 @@ try {
         $item->isDir() ? rmdir($item->getPathname()) : unlink($item->getPathname());
     }
     rmdir($dir);
+}
+
+function PathsForTest(): string
+{
+    return GLPI_CONFIG_DIR . '/gitpull_repos.json';
 }

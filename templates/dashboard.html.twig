@@ -1,4 +1,6 @@
 {% autoescape 'html' %}
+{% include '@gitpull/diagnostics.html.twig' %}
+{% if notice %}<div class="alert alert-success">{{ notice }}</div>{% endif %}
 <div class="card p-3">
   <h1>gitpull — Tableau de bord</h1>
   <p><a class="btn btn-primary" href="{{ base }}config.php">Ajouter un dépôt</a></p>
@@ -20,8 +22,8 @@
           <form method="post" action="{{ base }}dashboard.php">
             <input type="hidden" name="gitpull_csrf" value="{{ csrf }}">
             <input type="hidden" name="id" value="{{ row.repo.id }}">
-            <button class="btn btn-secondary" name="action" value="check" {{ row.running ? 'disabled' : '' }}>Vérifier maintenant</button>
-            <button class="btn btn-primary" name="action" value="pull" {{ row.running ? 'disabled' : '' }}>Pull maintenant</button>
+            <button class="btn btn-secondary" name="action" value="check" {{ (row.running or row.blocked) ? 'disabled' : '' }}>Vérifier maintenant</button>
+            <button class="btn btn-primary" name="action" value="pull" {{ (row.running or row.blocked) ? 'disabled' : '' }}>Pull maintenant</button>
           </form>
           <details><summary>Journal et historique</summary>
             <pre>{{ row.state.log|default('Aucune exécution.') }}</pre>
@@ -32,7 +34,7 @@
         </td>
       </tr>
     {% else %}
-      <tr><td colspan="6">Aucun dépôt déclaré dans le manifeste.</td></tr>
+      <tr><td colspan="6">{{ error ? 'Liste non chargée : consultez le diagnostic ci-dessus.' : 'Aucun dépôt déclaré dans le manifeste.' }}</td></tr>
     {% endfor %}
     </tbody>
   </table></div>

@@ -11,7 +11,7 @@ Web::guard();
 $error = null;
 $rows = [];
 try {
-    $repos = (new Manifest())->all();
+    $repos = (new Manifest())->all(false);
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = $_POST['id'] ?? '';
         $action = $_POST['action'] ?? '';
@@ -32,6 +32,17 @@ try {
         'error' => 'Erreur / Non disponible',
     ];
     foreach ($repos as $r) {
+        try {
+            Manifest::validate($r); // Display unsafe targets but never execute them.
+        } catch (InvalidArgumentException $e) {
+            \GlpiPlugin\Gitpull\Diagnostics::log('config_target_error', $r['id'] . ' : ' . $e->getMessage());
+            $rows[] = [
+                'repo' => $r, 'state' => ['error' => $e->getMessage()],
+                'running' => false, 'blocked' => true, 'label' => 'Configuration refusée',
+                'next_check' => null, 'next_pull' => null,
+            ];
+            continue;
+        }
         $s = $store->get($r);
         $locked = $store->lock($r);
         $running = $locked === null;
@@ -45,7 +56,7 @@ try {
             $s['error'] = 'Exécution interrompue : verrou libéré sans résultat final.';
         }
         $rows[] = [
-            'repo' => $r, 'state' => $s, 'running' => $running,
+            'repo' => $r, 'state' => $s, 'running' => $running, 'blocked' => false,
             'label' => $labels[$status] ?? 'Non initialisé',
             'next_check' => $r['auto_check']
                 ? ($s['last_check_attempt'] ?? 0) + $r['check_interval'] * 60 : null,
@@ -55,5 +66,6 @@ try {
     }
 } catch (Throwable $e) {
     $error = $e->getMessage();
+    \GlpiPlugin\Gitpull\Diagnostics::log('dashboard_error', $error);
 }
 Web::render('dashboard.html.twig', ['rows' => $rows, 'error' => $error]);

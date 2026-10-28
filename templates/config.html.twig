@@ -1,4 +1,6 @@
 {% autoescape 'html' %}
+{% include '@gitpull/diagnostics.html.twig' %}
+{% if notice %}<div class="alert alert-success">{{ notice }}</div>{% endif %}
 <div class="card p-3">
   <h1>gitpull — Configuration d’un dépôt</h1>
   <p><a href="{{ base }}dashboard.php">Retour au tableau de bord</a></p>
@@ -6,7 +8,7 @@
   <form method="post">
     <input type="hidden" name="gitpull_csrf" value="{{ csrf }}">
     <input type="hidden" name="revision" value="{{ revision }}">
-    <p><label>Identifiant unique <input class="form-control" name="id" value="{{ repo.id }}" pattern="[a-z][a-z0-9_-]{0,63}" required {{ repo.id ? 'readonly' : '' }}></label></p>
+    <p><label>Identifiant unique <input class="form-control" name="id" value="{{ repo.id }}" pattern="[a-z][a-z0-9_-]{0,63}" required {{ editing ? 'readonly' : '' }}></label></p>
     <p><label>URL du dépôt public HTTPS <input class="form-control" type="url" name="url" value="{{ repo.url }}" required></label></p>
     <p><label>Chemin local absolu <input class="form-control" name="path" value="{{ repo.path }}" required></label></p>
     <p><label>Script post-pull (chemin absolu optionnel) <input class="form-control" name="script_path" value="{{ repo.post_pull.path|default('') }}"></label>

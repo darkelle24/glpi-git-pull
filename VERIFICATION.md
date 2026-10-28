@@ -1,17 +1,14 @@
-# Vérification de la livraison
+# Vérification 0.1.1
 
-- 15 fichiers PHP : syntaxe vérifiée avec PHP CLI 8.5.12 sous Windows.
-- 13 vérifications autonomes du stockage : réussies (tests/storage.php).
-- Sources GLPI 12.0.0 consultées pour les méthodes du cron, les menus, le rendu
-  Twig et l'initialisation du noyau.
-- Fichiers encodés en UTF-8 sans BOM.
-- Le manifeste d'exemple ne contient aucun état dynamique.
-- Les pages Twig et la commande de démarrage sont fournies mais leur exécution
-  n'a pas été vérifiée dans une instance GLPI 12 avec SQL.
-- tests/linux.php doit être lancé sous www-data dans le conteneur cible.
-- Aucun clone distant, script post-pull, hard reset ou déploiement réel n'a été
-  exécuté dans cet environnement Windows.
+Résultats : les 16 fichiers PHP passent le contrôle de syntaxe et les
+26 vérifications autonomes de tests/storage.php sont réussies.
 
-Avant mise en service : effectuer les scénarios d'intégration du README dans
-une instance de test. La livraison est un socle de développement, pas une
-certification de production.
+Scénarios ajoutés : dépôt à cible refusée toujours listable, validation stricte
+avant exécution, erreur JSON avec suffixe %, diagnostic du chemin réellement
+chargé, présence/absence du fichier, journal borné et absence de modification
+du manifeste pendant les diagnostics. Les tests de stockage existants restent
+présents : écritures atomiques, conflit de révision, verrouillage et cache.
+
+L'environnement disponible est Windows, avec PHP CLI 8.5.12. Les pages Twig,
+les droits effectifs de www-data et les montages Docker n'ont pas été testés
+dans votre instance GLPI. Aucun déploiement ni commande Git distante effectué.

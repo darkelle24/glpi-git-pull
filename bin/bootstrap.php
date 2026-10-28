@@ -45,6 +45,7 @@ try {
     }
     exit($ok ? 0 : 1);
 } catch (\Throwable $e) {
+    \GlpiPlugin\Gitpull\Diagnostics::log('bootstrap_error', $e->getMessage());
     fwrite(STDERR, $e->getMessage() . PHP_EOL);
     exit(1);
 }

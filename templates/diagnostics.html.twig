@@ -1,0 +1,39 @@
+{% autoescape 'html' %}
+<section class="card p-3 mb-3" aria-label="Emplacement et diagnostic de la configuration">
+  <h2>Configuration utilisée par gitpull</h2>
+  <p><strong>Fichier manifeste :</strong> <code>{{ diagnostic.path }}</code></p>
+  {% if diagnostic.resolved and diagnostic.resolved != diagnostic.path %}
+    <p>Chemin réel : <code>{{ diagnostic.resolved }}</code></p>
+  {% endif %}
+  <p>Fichier présent : <strong>{{ diagnostic.exists ? 'Oui' : 'Non' }}</strong> —
+    Lisible : <strong>{{ diagnostic.readable ? 'Oui' : 'Non' }}</strong> —
+    Fichier modifiable : <strong>{{ diagnostic.writable ? 'Oui' : 'Non' }}</strong> —
+    Dossier modifiable : <strong>{{ diagnostic.directory_writable ? 'Oui' : 'Non' }}</strong> —
+    Verrou accessible : <strong>{{ diagnostic.lock_writable ? 'Oui' : 'Non' }}</strong></p>
+  <p>Utilisateur PHP : <code>{{ diagnostic.user }}</code>
+    {% if diagnostic.modified %} — Dernière modification : {{ diagnostic.modified|date('d/m/Y H:i:s') }}{% endif %}
+    {% if diagnostic.count is not null %} — Dépôts déclarés : <strong>{{ diagnostic.count }}</strong>{% endif %}
+  </p>
+  {% if not diagnostic.exists %}
+    <div class="alert alert-warning">Le manifeste n’existe pas à cet emplacement. Aucun dépôt ne sera chargé. Le formulaire peut le créer si le dossier est accessible en écriture.</div>
+  {% elseif not diagnostic.readable %}
+    <div class="alert alert-danger">Le manifeste existe mais le processus PHP ne peut pas le lire.</div>
+  {% endif %}
+  {% if diagnostic.validation_error %}
+    <div class="alert alert-danger"><strong>Configuration rejetée :</strong> {{ diagnostic.validation_error }}</div>
+  {% endif %}
+  {% if not diagnostic.directory_writable or not diagnostic.lock_writable or (diagnostic.exists and not diagnostic.writable) %}
+    <div class="alert alert-warning">L’enregistrement nécessite les droits appropriés pour www-data sur le manifeste, son dossier et son verrou. Une écriture atomique peut aussi être refusée si le fichier seul est monté dans Docker : montez son dossier.</div>
+  {% endif %}
+  <details>
+    <summary>Journal de configuration et d’exécution (50 derniers événements)</summary>
+    <p>Emplacement : <code>{{ diagnostic.log_path }}</code><br>Verrou du manifeste : <code>{{ diagnostic.lock_path }}</code></p>
+    {% if diagnostic.log_error %}<p class="text-danger">{{ diagnostic.log_error }}</p>{% endif %}
+    {% for event in diagnostic.events %}
+      <p>{{ event.at|date('d/m/Y H:i:s') }} — <strong>{{ event.event }}</strong> — {{ event.message }}</p>
+    {% else %}
+      <p>Aucun événement enregistré. Les sorties détaillées Git et des scripts figurent également dans « Journal et historique » sur chaque dépôt. Si le cache n’est pas accessible, consultez le journal d’erreurs PHP.</p>
+    {% endfor %}
+  </details>
+</section>
+{% endautoescape %}

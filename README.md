@@ -1,6 +1,6 @@
 # gitpull — socle pour GLPI 12.x
 
-Version 0.1.0 · GPL-3.0-or-later · PHP et extensions requis par GLPI 12, Linux,
+Version 0.1.1 · GPL-3.0-or-later · PHP et extensions requis par GLPI 12, Linux,
 Git, proc_open, POSIX, DNS, Bash/PHP pour les scripts.
 
 ## Arborescence
@@ -231,3 +231,36 @@ La commande CLI initialise explicitement le Kernel GLPI 12. Les pages web sont
 initialisées par le routeur GLPI ; elles n'incluent pas l'ancien inc/includes.php.
 Les ressources JavaScript résident sous public/ et les URL sont construites sans
 Plugin::getWebDir, supprimé des sources GLPI 12.
+
+## Diagnostic du manifeste (0.1.1)
+
+Un bandeau en haut du tableau de bord et de la configuration affiche le chemin
+GLPI_CONFIG_DIR/gitpull_repos.json réellement utilisé, son chemin résolu, sa
+présence, ses droits de lecture/écriture, les droits du dossier et du verrou,
+l'utilisateur PHP, sa date de modification et le nombre de dépôts déclarés.
+
+Le journal général est GLPI_VAR_DIR/_plugins/gitpull/diagnostics.json :
+50 événements maximum, erreurs de lecture/enregistrement/cron/bootstrap,
+résultats des opérations Git. Les sorties détaillées Git/scripts restent dans
+le cache de chaque dépôt. Aucune donnée de diagnostic n'est écrite dans le
+manifeste. En cas d'impossibilité d'écrire le journal, consulter les erreurs PHP.
+
+L'interface affiche maintenant les dépôts dont la cible est refusée, avec le
+motif et les boutons d'exécution désactivés. Leur configuration reste accessible
+pour correction. Le cron conserve la validation stricte du manifeste avant
+exécution. Un JSON syntaxiquement invalide ne peut pas être édité via le
+formulaire : corriger d'abord le fichier, sans l'écraser automatiquement.
+
+Un message de réussite confirme l'enregistrement après redirection. Les erreurs
+incluent le chemin du fichier/dossier/verrou concerné et sont journalisées.
+
+Attention à l'exemple fourni lors du diagnostic :
+- une entrée visant le dossier d'installation de gitpull est refusée, car cette
+  base ne permet pas l'auto-remplacement du plugin ;
+- un caractère % effectivement présent après la dernière accolade invalide le
+  JSON. Un % affiché uniquement par le terminal ne fait pas partie du fichier ;
+- un fichier présent ailleurs que le chemin affiché ne sera pas chargé.
+
+Mise à jour depuis 0.1.0 : remplacer le dossier du code avec celui du ZIP 0.1.1
+en conservant le manifeste externe et le cache. Pas de migration SQL ajoutée.
+Si OPcache conserve les anciens fichiers, recharger PHP-FPM selon votre image.

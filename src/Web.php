@@ -26,10 +26,14 @@ final class Web
 
     public static function render(string $template, array $data): void
     {
+        $notice = $_SESSION['gitpull_notice'] ?? null;
+        unset($_SESSION['gitpull_notice']);
         \Html::header('gitpull', $_SERVER['PHP_SELF'], 'config', Scheduler::class);
         \Glpi\Application\View\TemplateRenderer::getInstance()->display(
             '@gitpull/' . $template,
             $data + [
+                'diagnostic' => Diagnostics::report(),
+                'notice' => $notice,
                 'csrf' => $_SESSION['gitpull_csrf'],
                 'base' => self::base(),
             ]

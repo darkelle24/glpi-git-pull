@@ -8,7 +8,7 @@ final class Manifest
         $this->file ??= Paths::manifest();
     }
 
-    public function all(): array
+    public function all(bool $validateTargets = true): array
     {
         $data = AtomicJson::read($this->file, ['version' => 1, 'repositories' => []]);
         if (($data['version'] ?? null) !== 1 || !isset($data['repositories'])
@@ -22,7 +22,12 @@ final class Manifest
             if (!is_array($input)) {
                 throw new \InvalidArgumentException('Dépôt invalide.');
             }
-            $repo = self::validate($input);
+            try {
+                $repo = self::validate($input, $validateTargets);
+            } catch (\InvalidArgumentException $e) {
+                $id = is_string($input['id'] ?? null) ? $input['id'] : '(sans identifiant)';
+                throw new \InvalidArgumentException("Dépôt $id : " . $e->getMessage(), 0, $e);
+            }
             if (isset($repos[$repo['id']]) || isset($paths[$repo['path']])) {
                 throw new \InvalidArgumentException('Identifiant ou chemin dupliqué.');
             }
@@ -32,7 +37,7 @@ final class Manifest
         return $repos;
     }
 
-    public static function validate(array $r): array
+    public static function validate(array $r, bool $validateTargets = true): array
     {
         $keys = ['id', 'url', 'path', 'post_pull', 'hard_pull', 'auto_check',
             'auto_pull', 'check_interval', 'pull_interval'];
@@ -55,7 +60,9 @@ final class Manifest
         if (!is_string($r['path'])) {
             throw new \InvalidArgumentException('Chemin invalide.');
         }
-        Paths::validateTarget($r['path']);
+        if ($validateTargets) {
+            Paths::validateTarget($r['path']);
+        }
         foreach (['hard_pull', 'auto_check', 'auto_pull'] as $key) {
             if (!is_bool($r[$key])) {
                 throw new \InvalidArgumentException("$key doit être un booléen.");
@@ -79,16 +86,28 @@ final class Manifest
 
     public function save(array $repo, string $revision): void
     {
+        if (!is_dir(dirname($this->file)) || !is_writable(dirname($this->file))) {
+            throw new \RuntimeException('Enregistrement impossible : dossier non accessible en écriture : ' . dirname($this->file));
+        }
+        if (file_exists($this->file) && !is_writable($this->file)) {
+            throw new \RuntimeException('Enregistrement impossible : manifeste non accessible en écriture : ' . $this->file);
+        }
+        if (file_exists($this->file . '.lock') && !is_writable($this->file . '.lock')) {
+            throw new \RuntimeException('Enregistrement impossible : verrou non accessible en écriture : ' . $this->file . '.lock');
+        }
         // Stable sidecar lock: rename() must not change the locked inode.
         $lock = fopen($this->file . '.lock', 'c');
         if (!$lock || !flock($lock, LOCK_EX)) {
-            throw new \RuntimeException('Verrouillage du manifeste impossible.');
+            if (is_resource($lock)) {
+                fclose($lock);
+            }
+            throw new \RuntimeException('Verrouillage du manifeste impossible : ' . $this->file . '.lock');
         }
         try {
             if (!hash_equals($this->revision(), $revision)) {
                 throw new \RuntimeException('Configuration modifiée entre-temps. Rechargez le formulaire.');
             }
-            $repos = $this->all();
+            $repos = $this->all(false); // Allow correcting an existing target rejected at runtime.
             $repo = self::validate($repo);
             foreach ($repos as $id => $other) {
                 if ($id !== $repo['id'] && $other['path'] === $repo['path']) {

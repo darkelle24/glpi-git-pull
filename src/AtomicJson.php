@@ -12,7 +12,12 @@ final class AtomicJson
         if ($raw === false) {
             throw new \RuntimeException("Lecture impossible : $file");
         }
-        $value = json_decode($raw, true, 64, JSON_THROW_ON_ERROR);
+        try {
+            $value = json_decode($raw, true, 64, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            throw new \JsonException("JSON invalide dans $file : " . $e->getMessage()
+                . ' Vérifiez notamment les caractères après la dernière accolade (par exemple %).', 0, $e);
+        }
         if (!is_array($value)) {
             throw new \RuntimeException("Objet JSON attendu : $file");
         }
@@ -21,6 +26,9 @@ final class AtomicJson
 
     public static function write(string $file, array $value): void
     {
+        if (!is_dir(dirname($file)) || !is_writable(dirname($file))) {
+            throw new \RuntimeException('Dossier non accessible en écriture : ' . dirname($file));
+        }
         $temp = tempnam(dirname($file), '.gitpull-');
         if ($temp === false) {
             throw new \RuntimeException('Création du fichier temporaire impossible.');

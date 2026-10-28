@@ -33,6 +33,7 @@ final class Scheduler extends \CommonGLPI
             }
             return 1;
         } catch (\Throwable $e) {
+            Diagnostics::log('cron_error', $e->getMessage());
             if ($task) {
                 $task->log($e->getMessage() . "\n");
             }

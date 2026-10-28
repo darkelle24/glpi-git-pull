@@ -17,7 +17,7 @@ $revision = '';
 try {
     // The browser revision must correspond to the same manifest snapshot.
     $revision = $manifest->revision();
-    $repos = $manifest->all();
+    $repos = $manifest->all(false);
     if ($revision !== $manifest->revision()) {
         throw new RuntimeException('Configuration modifiée pendant la lecture. Rechargez.');
     }
@@ -52,10 +52,13 @@ try {
             throw new InvalidArgumentException('Identifiant immuable ou déjà utilisé.');
         }
         $manifest->save($r, $str('revision'));
+        \GlpiPlugin\Gitpull\Diagnostics::log('config_saved', 'Dépôt ' . $r['id'] . ' enregistré dans ' . \GlpiPlugin\Gitpull\Paths::manifest());
+        $_SESSION['gitpull_notice'] = 'Configuration enregistrée dans ' . \GlpiPlugin\Gitpull\Paths::manifest();
         Html::redirect(Web::base() . 'dashboard.php');
         return;
     }
 } catch (Throwable $e) {
     $error = $e->getMessage();
+    \GlpiPlugin\Gitpull\Diagnostics::log($_SERVER['REQUEST_METHOD'] === 'POST' ? 'config_save_error' : 'config_read_error', $error);
 }
-Web::render('config.html.twig', ['repo' => $r, 'revision' => $revision, 'error' => $error]);
+Web::render('config.html.twig', ['repo' => $r, 'revision' => $revision, 'error' => $error, 'editing' => is_string($_GET['id'] ?? null) && $_GET['id'] !== '']);

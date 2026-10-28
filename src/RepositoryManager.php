@@ -19,6 +19,7 @@ final class RepositoryManager
         }
         $lock = $this->store->lock($repo);
         if ($lock === null) {
+            Diagnostics::log('repository_busy', $repo['id'] . ' : opération déjà en cours.');
             return false;
         }
         $state = $this->store->get($repo);
@@ -85,11 +86,13 @@ final class RepositoryManager
             }
             $state['status'] = !empty($state['update_available']) ? 'update_available' : 'ready';
             $state['error'] = null;
+            Diagnostics::log('repository_success', $repo['id'] . ' : ' . $action . ' terminé.');
             return true;
         } catch (\Throwable $e) {
             $state['status'] = 'error';
             $state['error'] = $e->getMessage();
             $log .= "\n" . $e->getMessage();
+            Diagnostics::log('repository_error', $repo['id'] . ' : ' . $action . ' : ' . $e->getMessage());
             return false;
         } finally {
             // Also fixes stale "running" state after normal failures.
