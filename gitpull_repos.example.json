@@ -4,7 +4,7 @@
     {
       "id": "exemple",
       "url": "https://github.com/votre-organisation/votre-plugin.git",
-      "path": "/var/www/glpi/plugins/votreplugin",
+      "path": "",
       "post_pull": null,
       "hard_pull": false,
       "auto_check": true,

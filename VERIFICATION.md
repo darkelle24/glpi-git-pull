@@ -1,14 +1,20 @@
-# Vérification 0.1.1
+# Vérification 0.2.0
 
-Résultats : les 16 fichiers PHP passent le contrôle de syntaxe et les
-26 vérifications autonomes de tests/storage.php sont réussies.
+- Syntaxe : 18 fichiers PHP vérifiés avec PHP CLI 8.5.12 sous Windows.
+- Stockage et diagnostics : 26 vérifications réussies.
+- Chemins, manifeste et scripts : 39 vérifications réussies.
+- Aperçu de destination JavaScript : 6 vérifications réussies.
 
-Scénarios ajoutés : dépôt à cible refusée toujours listable, validation stricte
-avant exécution, erreur JSON avec suffixe %, diagnostic du chemin réellement
-chargé, présence/absence du fichier, journal borné et absence de modification
-du manifeste pendant les diagnostics. Les tests de stockage existants restent
-présents : écritures atomiques, conflit de révision, verrouillage et cache.
+Les scénarios couvrent notamment la destination omise/vide, le nom du dépôt,
+les chemins relatifs imbriqués, la conversion des anciens chemins internes,
+les traversées et chemins externes refusés, les destinations en doublon ou
+imbriquées, les scripts absents/externes et la résolution absolue du script.
+La validation et la consultation ne créent pas les dossiers du déploiement.
 
-L'environnement disponible est Windows, avec PHP CLI 8.5.12. Les pages Twig,
-les droits effectifs de www-data et les montages Docker n'ont pas été testés
-dans votre instance GLPI. Aucun déploiement ni commande Git distante effectué.
+Le test de liens symboliques n'a pas pu s'exécuter sous Windows ; son scénario
+est inclus dans tests/paths.php, et tests/linux.php est fourni pour le conteneur.
+Les tests JavaScript utilisent un document simulé, pas une instance GLPI.
+
+Le rendu Twig, l'icône, les droits www-data et la navigation dans une instance
+GLPI 12 avec SQL restent à vérifier dans le conteneur cible.
+Aucun clone distant, script réel, hard reset ou déploiement n'a été exécuté.

@@ -36,7 +36,7 @@ try {
     $manifest = new Manifest($file);
     $check($manifest->all() === [], 'Manifeste vide');
     $hash = hash_file('sha256', $file);
-    $repo = ['id' => 'example', 'path' => '/tmp/gitpull-test-target'];
+    $repo = ['id' => 'example', 'path' => 'plugins/gitpull-test-target'];
     $store = new StateStore();
     $store->put($repo, ['status' => 'pulling', 'last_check' => 123]);
     $check($store->get($repo)['status'] === 'pulling', 'Lecture du cache');
@@ -64,9 +64,11 @@ try {
     $expect(fn() => $manifest->all(false), JsonException::class);
     $r = [
         'id' => 'gitpull', 'url' => 'https://github.com/darkelle24/glpi-git-pull.git',
-        'path' => '/var/www/glpi/plugins/gitpull', 'post_pull' => null, 'hard_pull' => false,
+        'path' => 'plugins/blocked/child', 'post_pull' => null, 'hard_pull' => false,
         'auto_check' => true, 'auto_pull' => false, 'check_interval' => 60, 'pull_interval' => 1440,
     ];
+    mkdir($dir . '/plugins');
+    file_put_contents($dir . '/plugins/blocked', 'not a directory');
     AtomicJson::write(PathsForTest(), ['version' => 1, 'repositories' => [$r]]);
     $default = new Manifest();
     $check(isset($default->all(false)['gitpull']), 'Un dépôt bloqué reste visible dans la liste');

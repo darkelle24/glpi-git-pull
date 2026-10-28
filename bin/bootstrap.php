@@ -37,7 +37,7 @@ try {
     $ok = true;
     $manager = new \GlpiPlugin\Gitpull\RepositoryManager();
     foreach ($repos as $repo) {
-        if (!file_exists($repo['path'])) {
+        if (!file_exists(\GlpiPlugin\Gitpull\Paths::target($repo))) {
             $success = $manager->run($repo, 'bootstrap');
             echo $repo['id'] . ': ' . ($success ? 'OK' : 'ECHEC (voir cache)') . PHP_EOL;
             $ok = $success && $ok;

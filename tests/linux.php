@@ -12,7 +12,6 @@ mkdir($dir, 0700, true);
 define('GLPI_ROOT', $dir);
 define('GLPI_CONFIG_DIR', $dir);
 define('GLPI_VAR_DIR', $dir);
-putenv('GITPULL_ALLOWED_ROOTS=' . $dir);
 foreach (['AtomicJson', 'Paths', 'Manifest', 'Process'] as $class) {
     require dirname(__DIR__) . '/src/' . $class . '.php';
 }
@@ -28,7 +27,7 @@ $reject = static function (callable $fn) use (&$count): void {
 };
 $r = [
     'id' => 'example', 'url' => 'https://github.com/example/plugin.git',
-    'path' => $dir . '/example', 'post_pull' => null, 'hard_pull' => false,
+    'path' => 'plugins/example', 'post_pull' => null, 'hard_pull' => false,
     'auto_check' => true, 'auto_pull' => false, 'check_interval' => 5, 'pull_interval' => 30,
 ];
 try {
@@ -47,7 +46,7 @@ try {
         ['url' => 'https://github.com/example/plugin.git?token=x'],
         ['auto_check' => 'true'], ['check_interval' => 0],
         ['status' => 'ready'], ['path' => $dir . '/../outside'],
-        ['path' => '/etc/gitpull-test'], ['path' => $dir . '/nested/plugin'],
+        ['path' => '/etc/gitpull-test'], ['path' => 'plugins/../outside'],
     ] as $bad) {
         $reject(fn() => Manifest::validate(array_replace($r, $bad)));
     }

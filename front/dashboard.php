@@ -37,7 +37,7 @@ try {
         } catch (InvalidArgumentException $e) {
             \GlpiPlugin\Gitpull\Diagnostics::log('config_target_error', $r['id'] . ' : ' . $e->getMessage());
             $rows[] = [
-                'repo' => $r, 'state' => ['error' => $e->getMessage()],
+                'repo' => $r, 'target' => \GlpiPlugin\Gitpull\Paths::target($r), 'state' => ['error' => $e->getMessage()],
                 'running' => false, 'blocked' => true, 'label' => 'Configuration refusée',
                 'next_check' => null, 'next_pull' => null,
             ];
@@ -60,7 +60,7 @@ try {
             'label' => $labels[$status] ?? 'Non initialisé',
             'next_check' => $r['auto_check']
                 ? ($s['last_check_attempt'] ?? 0) + $r['check_interval'] * 60 : null,
-            'next_pull' => $r['auto_pull'] || !file_exists($r['path'])
+            'next_pull' => $r['auto_pull'] || !file_exists(\GlpiPlugin\Gitpull\Paths::target($r))
                 ? ($s['last_pull_attempt'] ?? 0) + $r['pull_interval'] * 60 : null,
         ];
     }

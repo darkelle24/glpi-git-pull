@@ -5,13 +5,13 @@
 use GlpiPlugin\Gitpull\Scheduler;
 
 defined('GLPI_ROOT') || die('Direct access forbidden');
-define('PLUGIN_GITPULL_VERSION', '0.1.1');
+define('PLUGIN_GITPULL_VERSION', '0.2.0');
 
 function plugin_init_gitpull(): void
 {
     global $PLUGIN_HOOKS;
     $PLUGIN_HOOKS['csrf_compliant']['gitpull'] = true;
-    $PLUGIN_HOOKS['config_page']['gitpull'] = 'front/config.php';
+    $PLUGIN_HOOKS['config_page']['gitpull'] = 'front/dashboard.php';
     $PLUGIN_HOOKS['menu_toadd']['gitpull'] = ['config' => Scheduler::class];
 }
 

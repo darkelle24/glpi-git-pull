@@ -14,7 +14,9 @@ final class RepositoryManager
         if (!in_array($action, ['check', 'pull', 'bootstrap'], true)) {
             throw new \InvalidArgumentException('Action inconnue.');
         }
-        if ($action === 'bootstrap' && file_exists($repo['path'])) {
+        $repo = Manifest::validate($repo, false);
+        $target = Paths::target($repo);
+        if ($action === 'bootstrap' && file_exists($target)) {
             return true;
         }
         $lock = $this->store->lock($repo);
@@ -37,9 +39,10 @@ final class RepositoryManager
                 $state['last_pull_attempt'] = $now;
             }
             $this->store->put($repo, $state);
-            $path = $repo['path'];
+            $path = $target;
             if (!file_exists($path)) {
                 $this->publicHost($repo['url']);
+                Paths::prepareParent($repo);
                 // Atomic publish: a failed clone never leaves a partial target.
                 $staging = dirname($path) . '/.gitpull-' . bin2hex(random_bytes(8));
                 $log .= $this->process->git(['clone', '--no-recurse-submodules', '--', $repo['url'], $staging]) . "\n";
@@ -121,11 +124,9 @@ final class RepositoryManager
         if ($s === null) {
             return;
         }
-        if (!is_file($s['path']) || !is_readable($s['path'])) {
-            throw new \RuntimeException('Script post-pull absent ou illisible.');
-        }
+        $script = Paths::script($repo);
         $binary = $s['type'] === 'php' ? '/usr/bin/php' : '/bin/bash';
-        $log .= $this->process->run([$binary, $s['path']], $repo['path'], 300) . "\n";
+        $log .= $this->process->run([$binary, $script], Paths::target($repo), 300) . "\n";
     }
 
     private function publicHost(string $url): void

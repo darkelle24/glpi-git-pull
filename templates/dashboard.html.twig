@@ -3,14 +3,14 @@
 {% if notice %}<div class="alert alert-success">{{ notice }}</div>{% endif %}
 <div class="card p-3">
   <h1>gitpull — Tableau de bord</h1>
-  <p><a class="btn btn-primary" href="{{ base }}config.php">Ajouter un dépôt</a></p>
+  <p><a class="btn btn-primary" href="{{ base }}repository.form.php">Ajouter un dépôt</a></p>
   {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
   <div class="table-responsive"><table class="table">
     <thead><tr><th>Dépôt</th><th>État</th><th>Dernier check</th><th>Dernier pull réussi</th><th>Prochain check / pull</th><th>Actions</th></tr></thead>
     <tbody>
     {% for row in rows %}
       <tr>
-        <td><a href="{{ base }}config.php?id={{ row.repo.id|url_encode }}">{{ row.repo.id }}</a><br>{{ row.repo.url }}<br><code>{{ row.repo.path }}</code></td>
+        <td><strong>{{ row.repo.id }}</strong><br>{{ row.repo.url }}<br><code>{{ row.target }}</code></td>
         <td>{{ row.label }}{% if row.state.error|default(null) %}<div class="text-danger">{{ row.state.error }}</div>{% endif %}</td>
         <td>{{ row.state.last_check|default(null) ? row.state.last_check|date('d/m/Y H:i:s') : 'Jamais' }}</td>
         <td>{{ row.state.last_pull_success|default(null) ? row.state.last_pull_success|date('d/m/Y H:i:s') : 'Jamais' }}</td>
@@ -24,6 +24,10 @@
             <input type="hidden" name="id" value="{{ row.repo.id }}">
             <button class="btn btn-secondary" name="action" value="check" {{ (row.running or row.blocked) ? 'disabled' : '' }}>Vérifier maintenant</button>
             <button class="btn btn-primary" name="action" value="pull" {{ (row.running or row.blocked) ? 'disabled' : '' }}>Pull maintenant</button>
+            <a class="btn btn-outline-secondary" href="{{ base }}repository.form.php?id={{ row.repo.id|url_encode }}"
+               title="Modifier le dépôt {{ row.repo.id }}" aria-label="Modifier le dépôt {{ row.repo.id }}">
+              <i class="ti ti-settings" aria-hidden="true"></i><span class="ms-1">Modifier</span>
+            </a>
           </form>
           <details><summary>Journal et historique</summary>
             <pre>{{ row.state.log|default('Aucune exécution.') }}</pre>

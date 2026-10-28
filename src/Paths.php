@@ -17,34 +17,169 @@ final class Paths
         return $dir;
     }
 
+    public static function root(): string
+    {
+        $root = realpath(GLPI_ROOT);
+        if ($root === false) {
+            throw new \RuntimeException('Racine GLPI introuvable.');
+        }
+        return rtrim(str_replace('\\', '/', $root), '/');
+    }
+
+    private static function absolute(string $path): bool
+    {
+        return str_starts_with($path, '/') || preg_match('~^[A-Za-z]:/~', $path) === 1;
+    }
+
+    public static function assertRelative(string $path): void
+    {
+        if ($path === '' || self::absolute($path) || str_contains($path, '\\')
+            || preg_match('/[\x00-\x1f\x7f:%?#]/', $path)) {
+            throw new \InvalidArgumentException('Chemin relatif requis, sans préfixe système, caractère spécial ni retour arrière.');
+        }
+        foreach (explode('/', $path) as $part) {
+            if ($part === '' || $part === '.' || $part === '..' || strtolower($part) === '.git') {
+                throw new \InvalidArgumentException('Les segments vides, ".", ".." et ".git" sont interdits.');
+            }
+        }
+    }
+
+    /** Accept legacy absolute targets only when strictly inside GLPI. */
+    public static function normalizeTarget(string $path): string
+    {
+        if ($path === '') {
+            return '';
+        }
+        if (self::absolute($path)) {
+            $roots = [self::root(), rtrim(str_replace('\\', '/', GLPI_ROOT), '/')];
+            $relative = null;
+            foreach ($roots as $root) {
+                if (str_starts_with($path, $root . '/')) {
+                    $relative = substr($path, strlen($root) + 1);
+                    break;
+                }
+            }
+            if ($relative === null) {
+                throw new \InvalidArgumentException('La destination doit rester à l’intérieur de GLPI.');
+            }
+            $path = $relative;
+        }
+        self::assertRelative($path);
+        return $path;
+    }
+
+    public static function defaultTarget(string $url): string
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+        $name = is_string($path) ? basename(rtrim($path, '/')) : '';
+        $name = preg_replace('/\.git$/i', '', $name);
+        if (!$name || !preg_match('/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/D', $name)) {
+            throw new \InvalidArgumentException('Impossible de déduire le nom du dépôt : indiquez une destination relative.');
+        }
+        return 'plugins/' . $name;
+    }
+
+    public static function target(array $repo): string
+    {
+        $relative = self::normalizeTarget($repo['path'] ?? '');
+        if ($relative === '') {
+            $relative = self::defaultTarget($repo['url'] ?? '');
+        }
+        return self::root() . '/' . $relative;
+    }
+
+    private static function noLinks(string $absolute): void
+    {
+        $root = self::root();
+        if (!str_starts_with($absolute, $root . '/')) {
+            throw new \InvalidArgumentException('Chemin hors de GLPI interdit.');
+        }
+        $cursor = $root;
+        foreach (explode('/', substr($absolute, strlen($root) + 1)) as $part) {
+            $cursor .= '/' . $part;
+            clearstatcache(true, $cursor);
+            if (is_link($cursor)) {
+                throw new \InvalidArgumentException('Lien symbolique interdit : ' . $cursor);
+            }
+        }
+    }
+
+    public static function overlaps(string $a, string $b): bool
+    {
+        return $a === $b || str_starts_with($a, $b . '/') || str_starts_with($b, $a . '/');
+    }
+
+    /** Validate filesystem permissions separately from the manifest schema. */
     public static function validateTarget(string $path): void
     {
-        if ($path === '' || $path[0] !== '/' || str_contains($path, "\0")
-            || preg_match('~(^|/)\.{1,2}(/|$)|//|/$~', $path)) {
-            throw new \InvalidArgumentException('Chemin Linux absolu normalisé requis.');
+        $relative = self::normalizeTarget($path);
+        if ($relative === '') {
+            throw new \InvalidArgumentException('La racine GLPI ne peut pas être une destination.');
         }
-        $roots = explode(':', getenv('GITPULL_ALLOWED_ROOTS') ?: GLPI_ROOT . '/plugins');
-        $allowed = false;
-        foreach ($roots as $root) {
-            $real = realpath($root);
-            // Only direct children: no nested/overlapping deployment targets.
-            if ($real !== false && dirname($path) === $real && is_writable($real)) {
-                $allowed = true;
+        $absolute = self::root() . '/' . $relative;
+        self::noLinks($absolute);
+        $self = str_replace('\\', '/', realpath(dirname(__DIR__)) ?: dirname(__DIR__));
+        if (self::overlaps($absolute, $self)) {
+            throw new \InvalidArgumentException('gitpull ne peut pas se remplacer lui-même ni modifier son propre dossier.');
+        }
+        $existing = $absolute;
+        while (!file_exists($existing)) {
+            $parent = dirname($existing);
+            if ($parent === $existing) {
+                throw new \InvalidArgumentException('Aucun parent de destination accessible.');
             }
+            $existing = $parent;
         }
-        if (!$allowed) {
-            throw new \InvalidArgumentException('La cible doit être un enfant direct d’une racine autorisée et accessible en écriture.');
+        if (!is_dir($existing) || !is_writable($existing)) {
+            throw new \InvalidArgumentException('Destination ou parent non accessible en écriture à www-data : ' . $existing);
         }
-        $self = realpath(dirname(__DIR__));
-        if ($self !== false && ($path === $self || str_starts_with($self, $path . '/'))) {
-            throw new \InvalidArgumentException('gitpull ne peut pas se remplacer lui-même.');
+    }
+
+    public static function prepareParent(array $repo): void
+    {
+        $target = self::target($repo);
+        self::validateTarget($target);
+        $parent = dirname($target);
+        if (!is_dir($parent) && !mkdir($parent, 0750, true) && !is_dir($parent)) {
+            throw new \RuntimeException('Impossible de créer le parent : ' . $parent);
         }
-        $cursor = $path;
-        while ($cursor !== '/') {
-            if (is_link($cursor)) {
-                throw new \InvalidArgumentException('Liens symboliques interdits dans le chemin cible.');
+        self::noLinks($target);
+    }
+
+    /** Script configuration is relative to the checkout; execution uses an absolute path. */
+    public static function normalizeScript(string $path, array $repo): string
+    {
+        if (self::absolute($path)) {
+            $prefixes = [self::target($repo)];
+            $rootAlias = rtrim(str_replace('\\', '/', GLPI_ROOT), '/');
+            $relativeTarget = self::normalizeTarget($repo['path'] ?? '');
+            $prefixes[] = $rootAlias . '/' . ($relativeTarget !== '' ? $relativeTarget : self::defaultTarget($repo['url']));
+            $relative = null;
+            foreach ($prefixes as $prefix) {
+                if (str_starts_with($path, $prefix . '/')) {
+                    $relative = substr($path, strlen($prefix) + 1);
+                    break;
+                }
             }
-            $cursor = dirname($cursor);
+            if ($relative === null) {
+                throw new \InvalidArgumentException('Le script doit se trouver dans le dépôt cloné.');
+            }
+            $path = $relative;
         }
+        self::assertRelative($path);
+        return $path;
+    }
+
+    public static function script(array $repo): string
+    {
+        $target = self::target($repo);
+        $absolute = $target . '/' . self::normalizeScript($repo['post_pull']['path'], $repo);
+        self::noLinks($absolute);
+        $real = realpath($absolute);
+        if ($real === false || !str_starts_with(str_replace('\\', '/', $real), $target . '/')
+            || !is_file($real) || !is_readable($real)) {
+            throw new \RuntimeException('Script absent, illisible ou extérieur au dépôt : ' . $absolute);
+        }
+        return $real;
     }
 }

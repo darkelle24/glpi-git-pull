@@ -26,7 +26,7 @@ final class StateStore
     public function lock(array $r)
     {
         // Lock on the target, not the configurable ID.
-        $file = Paths::cache() . '/' . hash('sha256', $r['path']) . '.lock';
+        $file = Paths::cache() . '/' . hash('sha256', Paths::target($r)) . '.lock';
         $handle = fopen($file, 'c');
         if (!$handle || !flock($handle, LOCK_EX | LOCK_NB)) {
             if (is_resource($handle)) {

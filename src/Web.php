@@ -36,6 +36,7 @@ final class Web
                 'notice' => $notice,
                 'csrf' => $_SESSION['gitpull_csrf'],
                 'base' => self::base(),
+                'glpi_root' => Paths::root(),
             ]
         );
         \Html::footer();

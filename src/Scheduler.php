@@ -49,7 +49,7 @@ final class Scheduler extends \CommonGLPI
         foreach ((new Manifest())->all() as $repo) {
             $s = $store->get($repo);
             $action = null;
-            if (!file_exists($repo['path'])) {
+            if (!file_exists(\GlpiPlugin\Gitpull\Paths::target($repo))) {
                 if ($bootstrapOnly || self::due($s['last_pull_attempt'] ?? null, $repo['pull_interval'])) {
                     $action = 'bootstrap';
                 }

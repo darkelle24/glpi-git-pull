@@ -28,17 +28,24 @@ final class Manifest
                 $id = is_string($input['id'] ?? null) ? $input['id'] : '(sans identifiant)';
                 throw new \InvalidArgumentException("Dépôt $id : " . $e->getMessage(), 0, $e);
             }
-            if (isset($repos[$repo['id']]) || isset($paths[$repo['path']])) {
-                throw new \InvalidArgumentException('Identifiant ou chemin dupliqué.');
+            if (isset($repos[$repo['id']])) {
+                throw new \InvalidArgumentException('Identifiant dupliqué.');
+            }
+            $target = Paths::target($repo);
+            foreach ($paths as $other) {
+                if (Paths::overlaps($target, $other)) {
+                    throw new \InvalidArgumentException('Destinations identiques ou imbriquées interdites.');
+                }
             }
             $repos[$repo['id']] = $repo;
-            $paths[$repo['path']] = true;
+            $paths[] = $target;
         }
         return $repos;
     }
 
     public static function validate(array $r, bool $validateTargets = true): array
     {
+        $r += ['path' => '']; // An absent/empty destination means plugins/<repository-name>.
         $keys = ['id', 'url', 'path', 'post_pull', 'hard_pull', 'auto_check',
             'auto_pull', 'check_interval', 'pull_interval'];
         if (array_diff(array_keys($r), $keys) || array_diff($keys, array_keys($r))) {
@@ -60,8 +67,10 @@ final class Manifest
         if (!is_string($r['path'])) {
             throw new \InvalidArgumentException('Chemin invalide.');
         }
+        $r['path'] = Paths::normalizeTarget($r['path']);
+        Paths::target($r); // Validate the inferred default even in read-only views.
         if ($validateTargets) {
-            Paths::validateTarget($r['path']);
+            Paths::validateTarget(Paths::target($r));
         }
         foreach (['hard_pull', 'auto_check', 'auto_pull'] as $key) {
             if (!is_bool($r[$key])) {
@@ -77,9 +86,11 @@ final class Manifest
             || array_diff(array_keys($r['post_pull']), ['type', 'path'])
             || !in_array($r['post_pull']['type'] ?? '', ['bash', 'php'], true)
             || !is_string($r['post_pull']['path'] ?? null)
-            || !str_starts_with($r['post_pull']['path'], '/')
             || str_contains($r['post_pull']['path'], "\0"))) {
-            throw new \InvalidArgumentException('Script : type bash/php et chemin absolu requis.');
+            throw new \InvalidArgumentException('Script : type bash/php et chemin relatif au dépôt requis.');
+        }
+        if ($r['post_pull'] !== null) {
+            $r['post_pull']['path'] = Paths::normalizeScript($r['post_pull']['path'], $r);
         }
         return $r;
     }
@@ -110,8 +121,8 @@ final class Manifest
             $repos = $this->all(false); // Allow correcting an existing target rejected at runtime.
             $repo = self::validate($repo);
             foreach ($repos as $id => $other) {
-                if ($id !== $repo['id'] && $other['path'] === $repo['path']) {
-                    throw new \InvalidArgumentException('Chemin déjà utilisé.');
+                if ($id !== $repo['id'] && Paths::overlaps(Paths::target($other), Paths::target($repo))) {
+                    throw new \InvalidArgumentException('Destination déjà utilisée ou imbriquée dans un autre dépôt.');
                 }
             }
             $repos[$repo['id']] = $repo;
