@@ -1,0 +1,42 @@
+{% autoescape 'html' %}
+<div class="card p-3">
+  <h1>gitpull — Tableau de bord</h1>
+  <p><a class="btn btn-primary" href="{{ base }}config.php">Ajouter un dépôt</a></p>
+  {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+  <div class="table-responsive"><table class="table">
+    <thead><tr><th>Dépôt</th><th>État</th><th>Dernier check</th><th>Dernier pull réussi</th><th>Prochain check / pull</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td><a href="{{ base }}config.php?id={{ row.repo.id|url_encode }}">{{ row.repo.id }}</a><br>{{ row.repo.url }}<br><code>{{ row.repo.path }}</code></td>
+        <td>{{ row.label }}{% if row.state.error|default(null) %}<div class="text-danger">{{ row.state.error }}</div>{% endif %}</td>
+        <td>{{ row.state.last_check|default(null) ? row.state.last_check|date('d/m/Y H:i:s') : 'Jamais' }}</td>
+        <td>{{ row.state.last_pull_success|default(null) ? row.state.last_pull_success|date('d/m/Y H:i:s') : 'Jamais' }}</td>
+        <td>
+          Check : <span data-gitpull-due="{{ row.next_check ?? '' }}">{{ row.next_check ? 'Calcul…' : 'Désactivé' }}</span><br>
+          Pull : <span data-gitpull-due="{{ row.next_pull ?? '' }}">{{ row.next_pull ? 'Calcul…' : 'Désactivé' }}</span>
+        </td>
+        <td>
+          <form method="post" action="{{ base }}dashboard.php">
+            <input type="hidden" name="gitpull_csrf" value="{{ csrf }}">
+            <input type="hidden" name="id" value="{{ row.repo.id }}">
+            <button class="btn btn-secondary" name="action" value="check" {{ row.running ? 'disabled' : '' }}>Vérifier maintenant</button>
+            <button class="btn btn-primary" name="action" value="pull" {{ row.running ? 'disabled' : '' }}>Pull maintenant</button>
+          </form>
+          <details><summary>Journal et historique</summary>
+            <pre>{{ row.state.log|default('Aucune exécution.') }}</pre>
+            {% for event in row.state.history|default([])|reverse %}
+              <p>{{ event.at|date('d/m/Y H:i:s') }} — {{ event.action }} — {{ event.status }} {{ event.error|default('') }}</p>
+            {% endfor %}
+          </details>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6">Aucun dépôt déclaré dans le manifeste.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <p>Les compteurs indiquent une échéance ; l’exécution dépend du prochain passage du cron GLPI. Rechargez pour actualiser les états.</p>
+</div>
+<script src="{{ path('/plugins/gitpull/js/dashboard.js') }}"></script>
+{% endautoescape %}

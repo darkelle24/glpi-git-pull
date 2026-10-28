@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "repositories": [
+    {
+      "id": "exemple",
+      "url": "https://github.com/votre-organisation/votre-plugin.git",
+      "path": "/var/www/glpi/plugins/votreplugin",
+      "post_pull": null,
+      "hard_pull": false,
+      "auto_check": true,
+      "auto_pull": false,
+      "check_interval": 5,
+      "pull_interval": 30
+    }
+  ]
+}

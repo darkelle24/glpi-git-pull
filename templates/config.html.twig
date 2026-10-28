@@ -1,0 +1,23 @@
+{% autoescape 'html' %}
+<div class="card p-3">
+  <h1>gitpull — Configuration d’un dépôt</h1>
+  <p><a href="{{ base }}dashboard.php">Retour au tableau de bord</a></p>
+  {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+  <form method="post">
+    <input type="hidden" name="gitpull_csrf" value="{{ csrf }}">
+    <input type="hidden" name="revision" value="{{ revision }}">
+    <p><label>Identifiant unique <input class="form-control" name="id" value="{{ repo.id }}" pattern="[a-z][a-z0-9_-]{0,63}" required {{ repo.id ? 'readonly' : '' }}></label></p>
+    <p><label>URL du dépôt public HTTPS <input class="form-control" type="url" name="url" value="{{ repo.url }}" required></label></p>
+    <p><label>Chemin local absolu <input class="form-control" name="path" value="{{ repo.path }}" required></label></p>
+    <p><label>Script post-pull (chemin absolu optionnel) <input class="form-control" name="script_path" value="{{ repo.post_pull.path|default('') }}"></label>
+      <label>Interpréteur <select name="script_type"><option value="bash">Bash</option><option value="php" {{ repo.post_pull.type|default('') == 'php' ? 'selected' : '' }}>PHP</option></select></label></p>
+    <p><label><input type="checkbox" name="hard_pull" {{ repo.hard_pull ? 'checked' : '' }}> Hard Pull (git reset --hard, abandon des modifications suivies)</label></p>
+    <p><label><input type="checkbox" name="auto_check" {{ repo.auto_check ? 'checked' : '' }}> Vérification auto</label></p>
+    <p><label><input type="checkbox" name="auto_pull" {{ repo.auto_pull ? 'checked' : '' }}> Pull auto</label></p>
+    <p><label>Fréquence de vérification (minutes) <input type="number" name="check_interval" min="1" max="525600" value="{{ repo.check_interval }}" required></label></p>
+    <p><label>Fréquence de pull (minutes) <input type="number" name="pull_interval" min="1" max="525600" value="{{ repo.pull_interval }}" required></label></p>
+    <p>Le script s’exécute sous www-data après chaque pull réussi et après le clonage initial. Sa configuration donne la capacité d’exécuter du code sur le serveur.</p>
+    <button class="btn btn-primary" type="submit">Enregistrer dans le manifeste</button>
+  </form>
+</div>
+{% endautoescape %}
