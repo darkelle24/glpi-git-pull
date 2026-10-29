@@ -1,21 +1,20 @@
 name: glpi
-
 networks:
   apps_backend:
-    external: true
+    external: True
   glpi_internal:
-    internal: true
-
+    internal: True
 services:
   glpi:
-    # Docker télécharge le Dockerfile directement depuis l'URL brute de votre GitHub
-    build: https://githubusercontent.com
+    build:
+      dockerfile: https://raw.githubusercontent.com/darkelle24/glpi-git-pull/refs/heads/main/docker/Dockerfile
+      pull: True
     container_name: glpi_app
     depends_on:
       glpi-db:
         condition: service_healthy
     environment:
-      GITPULL_ALLOWED_ROOTRoots: /var/www/glpi/plugins:/var/glpi/plugins:/var/glpi/marketplace
+      GITPULL_ALLOWED_ROOTS: /var/www/glpi/plugins:/var/glpi/plugins:/var/glpi/marketplace
       GLPI_DB_HOST: glpi-db
       GLPI_DB_NAME: glpi
       GLPI_DB_PASSWORD: TEMP
@@ -34,9 +33,7 @@ services:
       - /mnt/Apps/GLPI/marketplace:/var/glpi/marketplace
       - /mnt/Apps/GLPI/logs:/var/glpi/logs
       - /mnt/Apps/GLPI/plugins:/var/www/glpi/plugins
-
   glpi-db:
-    image: mariadb:11.4
     container_name: glpi_db
     environment:
       MARIADB_DATABASE: glpi
@@ -46,8 +43,13 @@ services:
     healthcheck:
       interval: 10s
       retries: 12
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test:
+        - CMD
+        - healthcheck.sh
+        - '--connect'
+        - '--innodb_initialized'
       timeout: 5s
+    image: mariadb:11.4
     networks:
       - glpi_internal
     restart: unless-stopped
