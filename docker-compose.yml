@@ -1,0 +1,55 @@
+name: glpi
+
+networks:
+  apps_backend:
+    external: true
+  glpi_internal:
+    internal: true
+
+services:
+  glpi:
+    # Docker télécharge le Dockerfile directement depuis l'URL brute de votre GitHub
+    build: https://githubusercontent.com
+    container_name: glpi_app
+    depends_on:
+      glpi-db:
+        condition: service_healthy
+    environment:
+      GITPULL_ALLOWED_ROOTRoots: /var/www/glpi/plugins:/var/glpi/plugins:/var/glpi/marketplace
+      GLPI_DB_HOST: glpi-db
+      GLPI_DB_NAME: glpi
+      GLPI_DB_PASSWORD: TEMP
+      GLPI_DB_PORT: '3306'
+      GLPI_DB_USER: glpi_user
+      GLPI_INSTALL_MODE: DOCKER
+      GLPI_SKIP_AUTOUPDATE: 'true'
+      TZ: Europe/Paris
+    networks:
+      - apps_backend
+      - glpi_internal
+    restart: unless-stopped
+    volumes:
+      - /mnt/Apps/GLPI/config:/var/glpi/config
+      - /mnt/Apps/GLPI/files:/var/glpi/files
+      - /mnt/Apps/GLPI/marketplace:/var/glpi/marketplace
+      - /mnt/Apps/GLPI/logs:/var/glpi/logs
+      - /mnt/Apps/GLPI/plugins:/var/www/glpi/plugins
+
+  glpi-db:
+    image: mariadb:11.4
+    container_name: glpi_db
+    environment:
+      MARIADB_DATABASE: glpi
+      MARIADB_PASSWORD: TEMP
+      MARIADB_ROOT_PASSWORD: TEMP
+      MARIADB_USER: glpi_user
+    healthcheck:
+      interval: 10s
+      retries: 12
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      timeout: 5s
+    networks:
+      - glpi_internal
+    restart: unless-stopped
+    volumes:
+      - /mnt/Apps/GLPI/database:/var/lib/mysql
