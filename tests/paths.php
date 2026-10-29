@@ -9,8 +9,13 @@ mkdir($dir, 0700, true);
 define('GLPI_ROOT', $dir);
 define('GLPI_CONFIG_DIR', $dir);
 define('GLPI_VAR_DIR', $dir);
+// Load Paths from a simulated installed plugin to exercise the real self-directory guard.
+mkdir($dir . '/plugins/gitpull/src', 0700, true);
+copy(dirname(__DIR__) . '/src/Paths.php', $dir . '/plugins/gitpull/src/Paths.php');
 foreach (['AtomicJson', 'Paths', 'Manifest'] as $class) {
-    require dirname(__DIR__) . '/src/' . $class . '.php';
+    require $class === 'Paths'
+        ? $dir . '/plugins/gitpull/src/Paths.php'
+        : dirname(__DIR__) . '/src/' . $class . '.php';
 }
 $dir = Paths::root(); // Use the canonical root on Windows too (short-path aliases).
 $count = 0;
@@ -35,6 +40,20 @@ $repo = [
     'check_interval' => 5, 'pull_interval' => 30,
 ];
 try {
+    $check(Paths::selfTarget() === 'plugins/gitpull', 'Destination exacte du plugin installé');
+    $selfManifest = new Manifest();
+    $initialRevision = $selfManifest->revision();
+    $selfRepo = $selfManifest->all()['gitpull'];
+    $check($selfRepo['path'] === 'plugins/gitpull', 'Manifeste initial dirigé vers le plugin installé');
+    $check(Paths::target(Manifest::validate($selfRepo)) === $dir . '/plugins/gitpull', 'Gestion du dossier exact du plugin autorisée');
+    $selfManifest->save($selfRepo, $initialRevision);
+    $check($selfManifest->all()['gitpull'] === $selfRepo, 'Configuration du plugin lui-même enregistrable');
+    $reject(fn() => Paths::validateTarget('plugins'));
+    $reject(fn() => Paths::validateTarget('plugins/gitpull/src'));
+    $reject(fn() => Paths::validateTarget($dir));
+    // An intentionally empty existing manifest must stay empty.
+    AtomicJson::write(Paths::manifest(), ['version' => 1, 'repositories' => []]);
+    $check($selfManifest->all() === [], 'Manifeste existant vide préservé');
     $valid = Manifest::validate($repo);
     $check($valid['path'] === '', 'Champ path facultatif');
     $check(Paths::target($valid) === $dir . '/plugins/my-plugin', 'Destination par défaut depuis le nom du dépôt');

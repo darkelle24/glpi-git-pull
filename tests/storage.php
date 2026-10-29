@@ -30,6 +30,24 @@ $expect = static function (callable $fn, string $type) use ($check): void {
     throw new RuntimeException('Exception attendue mais absente.');
 };
 try {
+    $seedFile = $dir . '/initial.json';
+    $seed = new Manifest($seedFile);
+    $initialRevision = $seed->revision();
+    $initial = $seed->all(false);
+    $check(is_file($seedFile) && array_keys($initial) === ['gitpull'], 'Manifeste absent créé avec gitpull');
+    $check($initial['gitpull']['url'] === 'https://github.com/darkelle24/glpi-git-pull.git'
+        && $initial['gitpull']['path'] === 'plugins/gitpull', 'URL et destination explicite du plugin');
+    $check($initial['gitpull']['auto_check'] && !$initial['gitpull']['auto_pull']
+        && !$initial['gitpull']['hard_pull'] && $initial['gitpull']['post_pull'] === null, 'Réglages initiaux sans pull automatique');
+    $seed->initialize();
+    $check($seed->revision() === $initialRevision, 'Initialisation répétée sans réécriture');
+    $seed->delete('gitpull', $initialRevision);
+    $seed->initialize();
+    $check($seed->all(false) === [], 'Dépôt supprimé non réinséré dans un manifeste existant');
+    file_put_contents($seedFile, '{broken');
+    $seed->initialize();
+    $expect(fn() => $seed->all(false), JsonException::class);
+    $check(file_get_contents($seedFile) === '{broken', 'Initialisation sans écraser un manifeste corrompu');
     $file = $dir . '/manifest.json';
     $check(AtomicJson::read($file, ['default' => true]) === ['default' => true], 'Valeur par défaut');
     AtomicJson::write($file, ['version' => 1, 'repositories' => []]);

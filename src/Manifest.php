@@ -8,9 +8,36 @@ final class Manifest
         $this->file ??= Paths::manifest();
     }
 
+    public function initialize(): void
+    {
+        clearstatcache(true, $this->file);
+        if (file_exists($this->file)) {
+            return; // Existing configurations, including empty/invalid ones, belong to the administrator.
+        }
+        $this->withLock(function (): void {
+            clearstatcache(true, $this->file);
+            if (file_exists($this->file)) {
+                return; // Another request has already initialized it.
+            }
+            if (is_link($this->file)) {
+                throw new \RuntimeException('Manifeste absent derrière un lien symbolique : ' . $this->file);
+            }
+            $repo = self::validate([
+                'id' => 'gitpull',
+                'url' => 'https://github.com/darkelle24/glpi-git-pull.git',
+                'path' => Paths::selfTarget(),
+                'post_pull' => null, 'hard_pull' => false,
+                'auto_check' => true, 'auto_pull' => false,
+                'check_interval' => 5, 'pull_interval' => 30,
+            ], false);
+            AtomicJson::write($this->file, ['version' => 1, 'repositories' => [$repo]]);
+        });
+    }
+
     public function all(bool $validateTargets = true): array
     {
-        $data = AtomicJson::read($this->file, ['version' => 1, 'repositories' => []]);
+        $this->initialize();
+        $data = AtomicJson::read($this->file);
         if (($data['version'] ?? null) !== 1 || !isset($data['repositories'])
             || !is_array($data['repositories']) || !array_is_list($data['repositories'])
             || array_diff(array_keys($data), ['version', 'repositories'])) {
@@ -122,6 +149,18 @@ final class Manifest
 
     private function update(string $revision, callable $change): void
     {
+        $this->initialize();
+        $this->withLock(function () use ($revision, $change): void {
+            if (!hash_equals($this->revision(), $revision)) {
+                throw new \RuntimeException('Configuration modifiée entre-temps. Rechargez le formulaire.');
+            }
+            $repos = $change($this->all(false));
+            AtomicJson::write($this->file, ['version' => 1, 'repositories' => array_values($repos)]);
+        });
+    }
+
+    private function withLock(callable $operation): void
+    {
         if (!is_dir(dirname($this->file)) || !is_writable(dirname($this->file))) {
             throw new \RuntimeException('Enregistrement impossible : dossier non accessible en écriture : ' . dirname($this->file));
         }
@@ -140,12 +179,7 @@ final class Manifest
             throw new \RuntimeException('Verrouillage du manifeste impossible : ' . $this->file . '.lock');
         }
         try {
-            if (!hash_equals($this->revision(), $revision)) {
-                throw new \RuntimeException('Configuration modifiée entre-temps. Rechargez le formulaire.');
-            }
-            // Both edits and removals use the same revision check and stable lock.
-            $repos = $change($this->all(false));
-            AtomicJson::write($this->file, ['version' => 1, 'repositories' => array_values($repos)]);
+            $operation();
         } finally {
             flock($lock, LOCK_UN);
             fclose($lock);
@@ -154,7 +188,8 @@ final class Manifest
 
     public function revision(): string
     {
-        $content = is_file($this->file) ? file_get_contents($this->file) : '';
+        $this->initialize();
+        $content = file_get_contents($this->file);
         if ($content === false) {
             throw new \RuntimeException('Lecture du manifeste impossible.');
         }

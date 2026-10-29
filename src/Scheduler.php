@@ -5,7 +5,7 @@ final class Scheduler extends \CommonGLPI
 {
     public static function getMenuName()
     {
-        return 'gitpull';
+        return 'Git Gestion';
     }
 
     public static function getMenuContent()
@@ -13,13 +13,13 @@ final class Scheduler extends \CommonGLPI
         if (!\Session::haveRight('config', UPDATE)) {
             return [];
         }
-        return ['title' => 'gitpull', 'page' => '/plugins/gitpull/front/dashboard.php',
+        return ['title' => 'Git Gestion', 'page' => '/plugins/gitpull/front/dashboard.php',
             'icon' => 'ti ti-git-pull-request'];
     }
 
     public static function cronInfo($name)
     {
-        return $name === 'Sync' ? ['description' => 'gitpull : déploiement et synchronisation'] : [];
+        return $name === 'Sync' ? ['description' => 'Git Gestion : déploiement et synchronisation'] : [];
     }
 
     public static function cronSync($task = null)
@@ -29,7 +29,7 @@ final class Scheduler extends \CommonGLPI
             $count = self::tick();
             if ($task) {
                 $task->addVolume($count);
-                $task->log("gitpull : $count action(s) traitée(s).\n");
+                $task->log("Git Gestion : $count action(s) traitée(s).\n");
             }
             return 1;
         } catch (\Throwable $e) {

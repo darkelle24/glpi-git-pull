@@ -26,6 +26,15 @@ final class Paths
         return rtrim(str_replace('\\', '/', $root), '/');
     }
 
+    public static function selfTarget(): string
+    {
+        $directory = str_replace('\\', '/', realpath(dirname(__DIR__)) ?: dirname(__DIR__));
+        $prefix = self::root() . '/';
+        // The fallback also permits standalone tests outside an installed GLPI tree.
+        return str_starts_with($directory, $prefix)
+            ? substr($directory, strlen($prefix)) : 'plugins/gitpull';
+    }
+
     private static function absolute(string $path): bool
     {
         return str_starts_with($path, '/') || preg_match('~^[A-Za-z]:/~', $path) === 1;
@@ -119,8 +128,8 @@ final class Paths
         $absolute = self::root() . '/' . $relative;
         self::noLinks($absolute);
         $self = str_replace('\\', '/', realpath(dirname(__DIR__)) ?: dirname(__DIR__));
-        if (self::overlaps($absolute, $self)) {
-            throw new \InvalidArgumentException('gitpull ne peut pas se remplacer lui-même ni modifier son propre dossier.');
+        if ($absolute !== $self && self::overlaps($absolute, $self)) {
+            throw new \InvalidArgumentException('Seul le dossier exact de gitpull peut être géré ; ses parents et sous-dossiers sont interdits.');
         }
         $existing = $absolute;
         while (!file_exists($existing)) {

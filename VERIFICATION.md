@@ -1,4 +1,4 @@
-# Vérification 0.2.5
+# Vérification 0.2.6
 
 - 21 fichiers PHP : syntaxe vérifiée avec PHP CLI 8.5.12 sous Windows.
 - Tableau de bord et formulaire : 51 vérifications réussies (dont les actions et lectures JSON sans redirection).
@@ -42,3 +42,11 @@ dans le navigateur (annulation sans soumission, confirmation avec soumission).
 Tests PHP : confirmation requise, CSRF, ancienne révision, identifiant incohérent,
 formulaire d’ajout, dépôt inconnu, redirection, autres dépôts et fichiers conservés,
 suppression du dernier dépôt avec manifeste vide valide. Stockage : 26 contrôles OK.
+
+Initialisation et auto-gestion : stockage 33 contrôles, chemins 47 contrôles,
+tableau de bord 51 contrôles réussis. Tests d’un manifeste absent, de son contenu
+initial, de l’absence de réécriture, de la suppression volontaire de gitpull et
+de la conservation d’un manifeste invalide. Paths est chargé depuis un dossier
+plugins/gitpull simulé pour vérifier l’autorisation de son dossier exact et le
+rejet de ses parents, sous-dossiers et de la racine GLPI. Syntaxe PHP vérifiée.
+Aucun pull du plugin réel effectué ; liens symboliques à vérifier sous Linux.

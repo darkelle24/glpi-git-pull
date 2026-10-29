@@ -43,7 +43,7 @@ fi
 echo "=== Vérification de la configuration ==="
 
 if [ ! -f "$CONFIG_DIR/gitpull_repos.json" ]; then
-    echo "[GitPull] Aucun fichier de configuration existant."
+    echo "[GitPull] Le manifeste sera créé avec gitpull à l’installation ou à la première lecture par le plugin."
 fi
 
 echo "=== Démarrage GLPI officiel ==="

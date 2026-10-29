@@ -19,7 +19,7 @@ Le formulaire d’ajout et de modification propose un bouton de retour à la lis
 Depuis 0.1.x, remplacer le code du plugin en conservant le manifeste externe.
 Les anciennes destinations absolues situées dans GLPI sont converties en
 chemins relatifs en mémoire puis enregistrées sous cette forme à la prochaine
-sauvegarde. Les lectures/cron ne réécrivent jamais le manifeste.
+sauvegarde. Les lectures/cron conservent un manifeste existant ; s’il est absent, ils créent la configuration initiale.
 Les anciens scripts absolus ne sont acceptés que s'ils sont dans le dépôt.
 Les scripts externes comme /opt/scripts/install.sh doivent être déplacés dans
 le dépôt ou remplacés par un script du dépôt.
@@ -27,6 +27,14 @@ GITPULL_ALLOWED_ROOTS n'est plus utilisé : la frontière est toujours GLPI_ROOT
 Les empreintes de cache peuvent changer après conversion ; l'état est recréé.
 
 ## Configuration
+
+À l’installation ou à la première lecture, un manifeste absent est créé automatiquement
+avec le dépôt https://github.com/darkelle24/glpi-git-pull.git, l’identifiant gitpull et
+la destination réelle du plugin (habituellement plugins/gitpull). La vérification auto
+est activée toutes les 5 minutes ; le pull auto et le hard pull sont désactivés et aucun
+script post-pull n’est configuré. La création ne lance aucune commande Git.
+Un manifeste existant, même vide ou invalide, n’est jamais remplacé par ces valeurs.
+Retirer gitpull de la liste ne le réinsère pas tant que le manifeste existe.
 
 Le manifeste est GLPI_CONFIG_DIR/gitpull_repos.json. Pour l'image officielle
 habituellement utilisée ici : /var/glpi/config/gitpull_repos.json. Le bandeau
@@ -76,7 +84,9 @@ chemin change.
 Les chemins ".", "..", les traversées, séparateurs Windows, chemins externes,
 segments vides, accès aux dossiers .git et liens symboliques sont refusés.
 Deux dépôts ne peuvent pas partager une destination ou être imbriqués.
-La racine GLPI et le code du plugin gitpull ne peuvent pas être remplacés.
+La racine GLPI reste interdite comme destination. Le dossier exact du plugin gitpull
+peut être géré comme dépôt pour sa propre mise à jour ; ses parents et sous-dossiers
+restent interdits comme destinations distinctes.
 Les chemins absolus saisis/hérités ne sont acceptés que s'ils sont strictement
 dans GLPI ; ils sont normalisés en chemins relatifs.
 
@@ -277,8 +287,12 @@ PHP n'est plus supposé être dans /usr/bin/php.
 
 Un path vide signifie toujours plugins/<nom-du-dépôt>. Pour le manifeste qui
 déclare le dépôt glpi-git-pull, cela donnerait plugins/glpi-git-pull, pas gitpull.
-Ne pas utiliser ce dépôt pour auto-mettre à jour le plugin : son installation
-reste assurée par le service Docker. Déclarer les autres plugins dans le manifeste.
+Pour gérer gitpull lui-même, renseigner explicitement sa destination : plugins/gitpull
+(ou le dossier réel de son installation). Le plugin doit être un clone Git indépendant
+avec son dossier .git et une origin correspondant à l’URL déclarée. Une installation
+copiée depuis une archive doit d’abord être remplacée par un clone Git.
+Le bouton Pull peut alors mettre à jour le plugin ; les vérifications de destination,
+de verrou, d’origin et de branche suivie restent appliquées.
 
 Références :
 [Dockerfile officiel](https://github.com/glpi-project/docker-images/blob/main/glpi/Dockerfile),

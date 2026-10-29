@@ -5,7 +5,8 @@ defined('GLPI_ROOT') || die('Direct access forbidden');
 
 function plugin_gitpull_install(): bool
 {
-    // No Git execution during installation, no overwrite of an existing manifest.
+    // Initialize configuration only; no Git execution or overwrite during installation.
+    (new \GlpiPlugin\Gitpull\Manifest())->initialize();
     $task = new CronTask();
     if ($task->getFromDBbyName(Scheduler::class, 'Sync')) {
         return true;
