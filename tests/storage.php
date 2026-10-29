@@ -10,7 +10,7 @@ mkdir($dir, 0700, true);
 define('GLPI_ROOT', $dir);
 define('GLPI_VAR_DIR', $dir);
 define('GLPI_CONFIG_DIR', $dir);
-foreach (['AtomicJson', 'Paths', 'Manifest', 'StateStore', 'Diagnostics'] as $class) {
+foreach (['AtomicJson', 'Paths', 'Manifest', 'StateStore', 'Process', 'Diagnostics'] as $class) {
     require dirname(__DIR__) . '/src/' . $class . '.php';
 }
 $count = 0;

@@ -125,7 +125,7 @@ final class RepositoryManager
             return;
         }
         $script = Paths::script($repo);
-        $binary = $s['type'] === 'php' ? '/usr/bin/php' : '/bin/bash';
+        $binary = Process::binary($s['type']);
         $log .= $this->process->run([$binary, $script], Paths::target($repo), 300) . "\n";
     }
 

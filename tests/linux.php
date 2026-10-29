@@ -58,6 +58,19 @@ try {
         throw new RuntimeException('Arguments interprétés par un shell.');
     }
     ++$count;
+    try {
+        $p->run(['/nonexistent/gitpull-test-command']);
+        throw new LogicException('Exécutable absent accepté.');
+    } catch (RuntimeException $e) {
+        if (!str_contains($e->getMessage(), '/nonexistent/gitpull-test-command')) {
+            throw $e;
+        }
+        ++$count;
+    }
+    if ($p->run(['/usr/bin/printf', '%s', 'stdin-closed']) !== 'stdin-closed') {
+        throw new RuntimeException('Lancement avec entrée fermée en échec.');
+    }
+    ++$count;
     echo "$count vérifications Linux OK\n";
 } finally {
     foreach (glob($dir . '/.*') ?: [] as $file) {

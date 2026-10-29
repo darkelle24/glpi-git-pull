@@ -1,6 +1,6 @@
 # gitpull — GLPI 12.x
 
-Version 0.2.0 · GPL-3.0-or-later · Linux · Git · proc_open et POSIX.
+Version 0.2.1 · GPL-3.0-or-later · Linux · Git · proc_open et POSIX.
 Le plugin sépare le manifeste de configuration des états et journaux jetables.
 
 ## Installation et mise à jour
@@ -80,7 +80,7 @@ Son champ path part du dépôt cloné : scripts/install.sh signifie
 GLPI_ROOT/plugins/monplugin/scripts/install.sh dans cet exemple. Un chemin
 absolu vers ce même fichier interne est également accepté et normalisé.
 Le plugin calcule le chemin absolu, vérifie qu'il reste dans le dépôt et lance
-/bin/bash ou /usr/bin/php avec le dépôt comme répertoire courant.
+l’interpréteur Bash ou PHP CLI détecté avec le dépôt comme répertoire courant.
 Aucun script situé à l'extérieur du dépôt n'est exécuté.
 
 Tous les autres champs sont obligatoires. Les fréquences sont des minutes
@@ -217,6 +217,7 @@ Ne jamais purger les fichiers .lock pendant l'exécution des workers.
 ```sh
 php tests/storage.php
 php tests/paths.php
+php tests/process.php
 # Sous www-data, dans le conteneur Linux :
 php tests/linux.php
 ```
@@ -228,3 +229,52 @@ refusées, scripts internes, cron, divergence et hard pull.
 Références : [architecture](https://glpi-developer-documentation.readthedocs.io/en/latest/plugins/objects.html),
 [conventions web et ressources](https://glpi-developer-documentation.readthedocs.io/en/master/upgradeguides/glpi-11.0.html),
 [sources GLPI 12](https://github.com/glpi-project/glpi/tree/12.0.0).
+
+## Diagnostic « Lancement du processus impossible » (0.2.1)
+
+Le bandeau affiche maintenant les exécutables détectés (Git, PHP CLI, Bash),
+la disponibilité de proc_open, le mode PHP et la restriction open_basedir.
+Un exécutable absent/non exécutable, un dossier de travail absent et une
+fonction PHP désactivée ont des messages distincts. Un refus de proc_open
+conserve l'avertissement PHP/système, le binaire et le dossier de travail.
+L'entrée standard est un pipe immédiatement fermé, sans ouverture de /dev/null
+par PHP, ce qui évite une restriction open_basedir sur ce descripteur.
+
+Git doit être installé dans le conteneur GLPI qui exécute le plugin.
+Le service séparé alpine/git ne partage ni ses exécutables ni ses bibliothèques
+avec GLPI. Le Dockerfile officiel consulté installe Git dans son étage de
+construction, pas dans l'étage applicatif.
+
+Un exemple docker/Dockerfile dérive de l'image utilisée dans votre Compose,
+installe Git/Bash/certificats pendant le build puis rétablit USER www-data :
+
+```sh
+# Sur l'hôte TrueNAS, après copie de cette version dans le volume plugins
+sudo docker build -t glpi-gitpull:local /mnt/Apps/GLPI/plugins/gitpull/docker
+```
+
+Dans le service glpi du Compose, remplacer uniquement image: glpi/glpi:latest
+par image: glpi-gitpull:local puis redéployer. Conserver ses volumes, variables,
+réseaux et dépendances. Cette image locale doit être reconstruite pour intégrer
+une nouvelle image GLPI de base. Le build n'a pas été exécuté ici.
+
+Vérification depuis le conteneur GLPI sous www-data :
+
+```sh
+php /var/www/glpi/plugins/gitpull/bin/diagnose.php
+```
+
+Cette commande lit les prérequis sans connexion SQL et sans lancer Git.
+Elle retourne 1 si Git ou proc_open est indisponible. Les réglages PHP CLI
+peuvent différer de ceux du serveur web : le bandeau montre le contexte web.
+Les interpréteurs sont détectés parmi /usr/local/bin, /usr/bin et /bin ;
+PHP n'est plus supposé être dans /usr/bin/php.
+
+Un path vide signifie toujours plugins/<nom-du-dépôt>. Pour le manifeste qui
+déclare le dépôt glpi-git-pull, cela donnerait plugins/glpi-git-pull, pas gitpull.
+Ne pas utiliser ce dépôt pour auto-mettre à jour le plugin : son installation
+reste assurée par le service Docker. Déclarer les autres plugins dans le manifeste.
+
+Références :
+[Dockerfile officiel](https://github.com/glpi-project/docker-images/blob/main/glpi/Dockerfile),
+[proc_open](https://www.php.net/manual/en/function.proc-open.php).

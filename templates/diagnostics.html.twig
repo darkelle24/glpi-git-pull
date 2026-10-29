@@ -25,6 +25,18 @@
   {% if not diagnostic.directory_writable or not diagnostic.lock_writable or (diagnostic.exists and not diagnostic.writable) %}
     <div class="alert alert-warning">L’enregistrement nécessite les droits appropriés pour www-data sur le manifeste, son dossier et son verrou. Une écriture atomique peut aussi être refusée si le fichier seul est monté dans Docker : montez son dossier.</div>
   {% endif %}
+  <div class="border rounded p-2 mb-3">
+    <strong>Exécution dans le conteneur GLPI</strong>
+    <p>PHP {{ diagnostic.runtime.php_version }} ({{ diagnostic.runtime.sapi }}) —
+      proc_open : <strong>{{ diagnostic.runtime.proc_open ? 'Disponible' : 'Indisponible' }}</strong></p>
+    <p>Git : <code>{{ diagnostic.runtime.binaries.git ?? 'Absent ou inaccessible' }}</code> —
+      PHP CLI : <code>{{ diagnostic.runtime.binaries.php ?? 'Absent ou inaccessible (scripts PHP)' }}</code> —
+      Bash : <code>{{ diagnostic.runtime.binaries.bash ?? 'Absent ou inaccessible (scripts Bash)' }}</code></p>
+    <p>Restriction PHP open_basedir : <code>{{ diagnostic.runtime.open_basedir }}</code></p>
+    {% for runtime_error in diagnostic.runtime.errors %}
+      <div class="alert alert-danger">{{ runtime_error }}</div>
+    {% endfor %}
+  </div>
   <details>
     <summary>Journal de configuration et d’exécution (50 derniers événements)</summary>
     <p>Emplacement : <code>{{ diagnostic.log_path }}</code><br>Verrou du manifeste : <code>{{ diagnostic.lock_path }}</code></p>

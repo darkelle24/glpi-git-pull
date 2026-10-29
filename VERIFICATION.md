@@ -1,20 +1,16 @@
-# Vérification 0.2.0
+# Vérification 0.2.1
 
-- Syntaxe : 18 fichiers PHP vérifiés avec PHP CLI 8.5.12 sous Windows.
+- 20 fichiers PHP : syntaxe vérifiée avec PHP CLI 8.5.12 sous Windows.
 - Stockage et diagnostics : 26 vérifications réussies.
-- Chemins, manifeste et scripts : 39 vérifications réussies.
-- Aperçu de destination JavaScript : 6 vérifications réussies.
+- Chemins et scripts : 39 vérifications réussies.
+- Lanceur/prérequis : 10 vérifications réussies.
+- Lanceur avec proc_open désactivée : 11 vérifications réussies.
 
-Les scénarios couvrent notamment la destination omise/vide, le nom du dépôt,
-les chemins relatifs imbriqués, la conversion des anciens chemins internes,
-les traversées et chemins externes refusés, les destinations en doublon ou
-imbriquées, les scripts absents/externes et la résolution absolue du script.
-La validation et la consultation ne créent pas les dossiers du déploiement.
+Les erreurs d'exécutable absent, de commande/argument invalide et de dossier
+de travail absent sont testées. La disponibilité effective de proc_open et
+la détection de PHP CLI sont vérifiées. Ces tests ne lancent pas de sous-processus.
 
-Le test de liens symboliques n'a pas pu s'exécuter sous Windows ; son scénario
-est inclus dans tests/paths.php, et tests/linux.php est fourni pour le conteneur.
-Les tests JavaScript utilisent un document simulé, pas une instance GLPI.
-
-Le rendu Twig, l'icône, les droits www-data et la navigation dans une instance
-GLPI 12 avec SQL restent à vérifier dans le conteneur cible.
-Aucun clone distant, script réel, hard reset ou déploiement n'a été exécuté.
+Les tests Linux d'exécution réelle et de liens symboliques restent à lancer
+sous www-data dans le conteneur. Le build Docker, le rendu Twig et le lancement
+Git depuis votre serveur web ne sont pas vérifiés ici. Aucun clone distant,
+script post-pull réel ni déploiement effectué dans cet environnement.

@@ -46,7 +46,7 @@ final class Diagnostics
             'modified' => is_file($file) ? filemtime($file) : null,
             'count' => null, 'validation_error' => null, 'events' => [],
             'log_path' => GLPI_VAR_DIR . '/_plugins/gitpull/diagnostics.json',
-            'log_error' => null,
+            'log_error' => null, 'runtime' => Process::runtime(),
         ];
         if ($r['exists']) {
             try {
