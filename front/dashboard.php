@@ -63,7 +63,7 @@ try {
     foreach ($repos as $r) {
         $row = [
             'repo' => $r, 'target' => Paths::target($r), 'state' => [],
-            'running' => false, 'blocked' => false, 'label' => 'Non initialisé',
+            'running' => false, 'blocked' => false, 'label' => 'Non initialisé', 'status' => 'unknown',
             'next_check' => null, 'next_pull' => null,
         ];
         try {
@@ -81,6 +81,7 @@ try {
                 $s['error'] = 'Exécution interrompue : verrou libéré sans résultat final.';
             }
             $row['state'] = $s;
+            $row['status'] = $row['running'] ? 'running' : $status;
             $row['label'] = $row['running']
                 ? ($s['activity'] ?? (in_array($status, ['checking', 'pulling'], true)
                     ? $labels[$status] : 'Opération en cours…'))
@@ -93,6 +94,7 @@ try {
             // A single invalid target/cache must not hide the remaining repositories.
             $row['state'] = ['error' => $e->getMessage()];
             $row['blocked'] = true;
+            $row['status'] = 'error';
             $row['label'] = $e instanceof InvalidArgumentException
                 ? 'Configuration refusée' : 'Erreur / Non disponible';
             Diagnostics::log('dashboard_repository_error', $r['id'] . ' : ' . $e->getMessage());

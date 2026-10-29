@@ -97,6 +97,31 @@ final class Manifest
 
     public function save(array $repo, string $revision): void
     {
+        $this->update($revision, static function (array $repos) use ($repo): array {
+            $repo = self::validate($repo);
+            foreach ($repos as $id => $other) {
+                if ($id !== $repo['id'] && Paths::overlaps(Paths::target($other), Paths::target($repo))) {
+                    throw new \InvalidArgumentException('Destination déjà utilisée ou imbriquée dans un autre dépôt.');
+                }
+            }
+            $repos[$repo['id']] = $repo;
+            return $repos;
+        });
+    }
+
+    public function delete(string $id, string $revision): void
+    {
+        $this->update($revision, static function (array $repos) use ($id): array {
+            if (!isset($repos[$id])) {
+                throw new \InvalidArgumentException('Dépôt absent du manifeste.');
+            }
+            unset($repos[$id]);
+            return $repos;
+        });
+    }
+
+    private function update(string $revision, callable $change): void
+    {
         if (!is_dir(dirname($this->file)) || !is_writable(dirname($this->file))) {
             throw new \RuntimeException('Enregistrement impossible : dossier non accessible en écriture : ' . dirname($this->file));
         }
@@ -118,14 +143,8 @@ final class Manifest
             if (!hash_equals($this->revision(), $revision)) {
                 throw new \RuntimeException('Configuration modifiée entre-temps. Rechargez le formulaire.');
             }
-            $repos = $this->all(false); // Allow correcting an existing target rejected at runtime.
-            $repo = self::validate($repo);
-            foreach ($repos as $id => $other) {
-                if ($id !== $repo['id'] && Paths::overlaps(Paths::target($other), Paths::target($repo))) {
-                    throw new \InvalidArgumentException('Destination déjà utilisée ou imbriquée dans un autre dépôt.');
-                }
-            }
-            $repos[$repo['id']] = $repo;
+            // Both edits and removals use the same revision check and stable lock.
+            $repos = $change($this->all(false));
             AtomicJson::write($this->file, ['version' => 1, 'repositories' => array_values($repos)]);
         } finally {
             flock($lock, LOCK_UN);

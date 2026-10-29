@@ -32,6 +32,19 @@
     <p>Le script s’exécute sous www-data après chaque pull réussi et après le clonage initial. Sa configuration donne la capacité d’exécuter du code sur le serveur.</p>
     <button class="btn btn-primary" type="submit">Enregistrer dans le manifeste</button>
   </form>
+  {% if editing %}
+    <div class="border-top mt-4 pt-3">
+      <p class="text-muted mb-2">Retirer ce dépôt du manifeste arrête sa gestion automatique. Les fichiers clonés sont conservés.</p>
+      <form method="post" data-gitpull-delete data-repository-id="{{ repo.id }}">
+        <input type="hidden" name="gitpull_csrf" value="{{ csrf }}">
+        <input type="hidden" name="revision" value="{{ revision }}">
+        <input type="hidden" name="id" value="{{ repo.id }}">
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="confirmed" value="0">
+        <button class="btn btn-danger" type="submit"><i class="ti ti-trash me-1" aria-hidden="true"></i>Supprimer le dépôt</button>
+      </form>
+    </div>
+  {% endif %}
 </div>
-<script src="{{ path('/plugins/gitpull/js/repository.js') }}"></script>
+<script src="{{ path('/plugins/gitpull/js/repository.js') }}?v={{ repository_js_version }}"></script>
 {% endautoescape %}

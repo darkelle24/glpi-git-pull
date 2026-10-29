@@ -263,6 +263,61 @@ namespace {
             $check(RepositoryManager::$calls === $calls, 'Protection CSRF préservée');
         }
 
+        $delete = [
+            'gitpull_csrf' => 'test-csrf-token', 'action' => 'delete', 'id' => 'alpha',
+            'revision' => (new Manifest())->revision(), 'confirmed' => '1',
+        ];
+        $beforeDelete = (new Manifest())->revision();
+        $unconfirmed = $delete;
+        $unconfirmed['confirmed'] = '0';
+        $response = $request('repository.form.php', 'POST', $unconfirmed, ['id' => 'alpha']);
+        $check($response['redirect'] === null && $response['view']['data']['error'] !== null
+            && (new Manifest())->revision() === $beforeDelete, 'Suppression sans confirmation refusée');
+        $stale = $delete;
+        $stale['revision'] = str_repeat('0', 64);
+        $response = $request('repository.form.php', 'POST', $stale, ['id' => 'alpha']);
+        $check($response['view']['data']['error'] !== null
+            && (new Manifest())->revision() === $beforeDelete, 'Suppression sur ancienne révision refusée');
+        $mismatch = $delete;
+        $mismatch['id'] = 'beta';
+        $response = $request('repository.form.php', 'POST', $mismatch, ['id' => 'alpha']);
+        $check($response['view']['data']['error'] !== null
+            && (new Manifest())->revision() === $beforeDelete, 'Identifiant de suppression incohérent refusé');
+        $response = $request('repository.form.php', 'POST', $delete);
+        $check($response['view']['data']['error'] !== null
+            && (new Manifest())->revision() === $beforeDelete, 'Suppression depuis le formulaire d’ajout refusée');
+        $invalidToken = $delete;
+        $invalidToken['gitpull_csrf'] = 'invalid';
+        try {
+            $request('repository.form.php', 'POST', $invalidToken, ['id' => 'alpha']);
+            throw new \LogicException('Suppression sans CSRF acceptée');
+        } catch (\Glpi\Exception\Http\AccessDeniedHttpException) {
+            $check((new Manifest())->revision() === $beforeDelete, 'Suppression protégée par CSRF');
+        }
+        try {
+            (new Manifest())->delete('unknown', $beforeDelete);
+            throw new \LogicException('Suppression inconnue acceptée');
+        } catch (\InvalidArgumentException) {
+            $check((new Manifest())->revision() === $beforeDelete, 'Suppression d’un dépôt inconnu sans modification');
+        }
+        mkdir(Paths::target($repo), 0700);
+        file_put_contents(Paths::target($repo) . '/keep.txt', 'conserver');
+        $response = $request('repository.form.php', 'POST', $delete, ['id' => 'alpha']);
+        $check($response['redirect']?->status === 303
+            && $response['redirect']->url === '/glpi-subpath/plugins/gitpull/front/dashboard.php', 'Suppression puis retour à la liste');
+        $remaining = (new Manifest())->all(false);
+        $check(array_keys($remaining) === ['beta'], 'Seul le dépôt demandé est retiré');
+        $check(file_get_contents(Paths::target($repo) . '/keep.txt') === 'conserver', 'Fichiers clonés conservés');
+        $page = $request('dashboard.php');
+        $check(count($page['view']['data']['rows']) === 1
+            && str_contains($page['view']['data']['notice'], 'supprimé'), 'Liste et confirmation après suppression');
+        $delete['id'] = 'beta';
+        $delete['revision'] = (new Manifest())->revision();
+        $request('repository.form.php', 'POST', $delete, ['id' => 'beta']);
+        $check((new Manifest())->all(false) === [], 'Suppression du dernier dépôt autorisée');
+        $emptyManifest = json_decode(file_get_contents(Paths::manifest()), true, 512, JSON_THROW_ON_ERROR);
+        $check($emptyManifest['repositories'] === [] && $emptyManifest['version'] === 1, 'Manifeste vide valide conservé');
+
         echo "$checkCount vérifications du tableau de bord OK\n";
     } finally {
         if (session_status() === PHP_SESSION_ACTIVE) {

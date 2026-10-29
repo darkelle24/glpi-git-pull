@@ -26,19 +26,34 @@
             node.setAttribute("aria-busy", String(value));
             node.querySelectorAll("button[name=action]").forEach((button) => { button.disabled = value; });
         };
+        const setStatus = (node, label, status) => {
+            const styles = {
+                ready: ["success", "✓"],
+                update_available: ["warning", "↓"],
+                running: ["info", "↻"],
+                error: ["danger", "!"],
+                unknown: ["secondary", "○"]
+            };
+            const [color, symbol] = styles[status] || styles.unknown;
+            const badge = node.querySelector("[data-gitpull-status-badge]");
+            badge.className = "badge bg-" + color + "-lt text-" + color +
+                " rounded-pill px-3 py-2 d-inline-flex align-items-center gap-2 text-wrap text-start lh-sm";
+            node.querySelector("[data-gitpull-status-icon]").textContent = symbol;
+            node.querySelector("[data-gitpull-status]").textContent = label;
+        };
         const render = (data) => {
             for (const row of data.rows) {
                 const node = Array.from(dashboard.querySelectorAll("[data-gitpull-repository]"))
                     .find((item) => item.dataset.gitpullRepository === row.repo.id);
                 if (!node || (pending.has(row.repo.id) && !row.running)) continue;
                 const state = row.state || {};
-                node.querySelector("[data-gitpull-status]").textContent = row.label;
+                setStatus(node, row.label, row.status);
                 let error = node.querySelector("[data-gitpull-error]");
                 if (!error) {
                     error = document.createElement("div");
                     error.dataset.gitpullError = "";
-                    error.className = "text-danger";
-                    node.querySelector("[data-gitpull-status]").after(error);
+                    error.className = "text-danger mt-1";
+                    node.querySelector("[data-gitpull-status-badge]").after(error);
                 }
                 error.textContent = state.error || "";
                 error.hidden = !state.error;
@@ -96,8 +111,8 @@
                 pending.add(id);
                 ++epoch;
                 busy(node, true);
-                node.querySelector("[data-gitpull-status]").textContent = button.value === "check"
-                    ? "Vérification du dépôt en cours…" : "Mise à jour du dépôt en cours…";
+                setStatus(node, button.value === "check"
+                    ? "Vérification du dépôt en cours…" : "Mise à jour du dépôt en cours…", "running");
                 const previousError = node.querySelector("[data-gitpull-error]");
                 if (previousError) previousError.hidden = true;
                 message("");
@@ -112,7 +127,7 @@
                 } catch (error) {
                     pending.delete(id);
                     ++epoch;
-                    node.querySelector("[data-gitpull-status]").textContent = "Résultat à confirmer…";
+                    setStatus(node, "Résultat à confirmer…", "unknown");
                     message("Résultat de l’action non reçu : " + error.message +
                         ". L’état sera actualisé automatiquement.", true);
                     // A failed response may still have started Git. Never retry the POST automatically.

@@ -1,9 +1,9 @@
-# Vérification 0.2.4
+# Vérification 0.2.5
 
 - 21 fichiers PHP : syntaxe vérifiée avec PHP CLI 8.5.12 sous Windows.
-- Tableau de bord et formulaire : 39 vérifications réussies (dont les actions et lectures JSON sans redirection).
+- Tableau de bord et formulaire : 51 vérifications réussies (dont les actions et lectures JSON sans redirection).
 - Stockage et diagnostics : 26 vérifications réussies.
-- Chemins et scripts : 39 vérifications réussies.
+- Chemins et scripts : 51 vérifications réussies.
 - Lanceur : 10 vérifications réussies, puis 11 avec proc_open désactivée.
 
 Le test tests/dashboard.php échoue sur le retour du POST de l'ancienne version,
@@ -36,3 +36,9 @@ après DOMContentLoaded et interception avant propagation aux formulaires GLPI.
 Test navigateur avec script externe chargé avant le DOM : clic Check et
 soumission sans submitter interceptés, URL inchangée, aucun gestionnaire
 de soumission global déclenché. Réponses serveur simulées.
+
+Suppression depuis la modification : bouton rouge et confirmation native testée
+dans le navigateur (annulation sans soumission, confirmation avec soumission).
+Tests PHP : confirmation requise, CSRF, ancienne révision, identifiant incohérent,
+formulaire d’ajout, dépôt inconnu, redirection, autres dépôts et fichiers conservés,
+suppression du dernier dépôt avec manifeste vide valide. Stockage : 26 contrôles OK.

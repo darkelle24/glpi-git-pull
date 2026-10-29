@@ -41,22 +41,35 @@ try {
             }
             return trim($value);
         };
-        $script = $str('script_path');
-        $r = [
-            'id' => $str('id'), 'url' => $str('url'), 'path' => $str('path'),
-            'post_pull' => $script === '' ? null : ['type' => $str('script_type'), 'path' => $script],
-            'hard_pull' => isset($_POST['hard_pull']),
-            'auto_check' => isset($_POST['auto_check']), 'auto_pull' => isset($_POST['auto_pull']),
-            'check_interval' => filter_var($str('check_interval'), FILTER_VALIDATE_INT),
-            'pull_interval' => filter_var($str('pull_interval'), FILTER_VALIDATE_INT),
-        ];
-        if (($id !== '' && $r['id'] !== $id) || ($id === '' && isset($repos[$r['id']]))) {
-            throw new InvalidArgumentException('Identifiant immuable ou déjà utilisé.');
+        $action = $str('action') ?: 'save';
+        if ($action === 'delete') {
+            if ($id === '' || $str('id') !== $id || $str('confirmed') !== '1') {
+                throw new InvalidArgumentException('Suppression non confirmée ou dépôt invalide.');
+            }
+            $manifest->delete($id, $str('revision'));
+            \GlpiPlugin\Gitpull\Diagnostics::log('config_deleted', 'Dépôt ' . $id . ' retiré du manifeste.');
+            $_SESSION['gitpull_notice'] = 'Dépôt ' . $id . ' supprimé du manifeste. Les fichiers clonés sont conservés.';
+            $saved = true;
+        } elseif ($action === 'save') {
+            $script = $str('script_path');
+            $r = [
+                'id' => $str('id'), 'url' => $str('url'), 'path' => $str('path'),
+                'post_pull' => $script === '' ? null : ['type' => $str('script_type'), 'path' => $script],
+                'hard_pull' => isset($_POST['hard_pull']),
+                'auto_check' => isset($_POST['auto_check']), 'auto_pull' => isset($_POST['auto_pull']),
+                'check_interval' => filter_var($str('check_interval'), FILTER_VALIDATE_INT),
+                'pull_interval' => filter_var($str('pull_interval'), FILTER_VALIDATE_INT),
+            ];
+            if (($id !== '' && $r['id'] !== $id) || ($id === '' && isset($repos[$r['id']]))) {
+                throw new InvalidArgumentException('Identifiant immuable ou déjà utilisé.');
+            }
+            $manifest->save($r, $str('revision'));
+            \GlpiPlugin\Gitpull\Diagnostics::log('config_saved', 'Dépôt ' . $r['id'] . ' enregistré dans ' . \GlpiPlugin\Gitpull\Paths::manifest());
+            $_SESSION['gitpull_notice'] = 'Configuration enregistrée dans ' . \GlpiPlugin\Gitpull\Paths::manifest();
+            $saved = true;
+        } else {
+            throw new InvalidArgumentException('Action inconnue.');
         }
-        $manifest->save($r, $str('revision'));
-        \GlpiPlugin\Gitpull\Diagnostics::log('config_saved', 'Dépôt ' . $r['id'] . ' enregistré dans ' . \GlpiPlugin\Gitpull\Paths::manifest());
-        $_SESSION['gitpull_notice'] = 'Configuration enregistrée dans ' . \GlpiPlugin\Gitpull\Paths::manifest();
-        $saved = true;
     }
 } catch (Throwable $e) {
     $error = $e->getMessage();
