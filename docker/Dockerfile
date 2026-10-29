@@ -21,7 +21,7 @@ RUN chmod 755 /usr/local/bin/git-pull-entrypoint.sh
 USER www-data
 
 # Entrypoint personnalisé
-ENTRYPOINT ["/usr/local/bin/git-pull-entrypoint.sh"]
+ENTRYPOINT ["/bin/bash", "/usr/local/bin/git-pull-entrypoint.sh"]
 
 # Commande de démarrage officielle
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
