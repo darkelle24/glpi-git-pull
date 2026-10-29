@@ -5,7 +5,7 @@
 use GlpiPlugin\Gitpull\Scheduler;
 
 defined('GLPI_ROOT') || die('Direct access forbidden');
-define('PLUGIN_GITPULL_VERSION', '0.2.3');
+define('PLUGIN_GITPULL_VERSION', '0.2.4');
 
 function plugin_init_gitpull(): void
 {

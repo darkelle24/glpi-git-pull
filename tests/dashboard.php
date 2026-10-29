@@ -151,6 +151,7 @@ namespace {
         $manifestHash = hash_file('sha256', Paths::manifest());
         $page = $request('dashboard.php');
         $check(count($page['view']['data']['rows']) === 2, 'Les deux dépôts doivent être affichés');
+        $check($page['view']['data']['dashboard_js_version'] === hash_file('sha256', dirname(__DIR__) . '/public/js/dashboard.js'), 'URL du script versionnée selon son contenu');
 
         $response = $request('dashboard.php', 'POST', $postAction('check'));
         $check($response['redirect']?->status === 303, 'Check doit rediriger, sans attraper la redirection');

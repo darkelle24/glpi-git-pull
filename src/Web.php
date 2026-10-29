@@ -36,6 +36,7 @@ final class Web
                 'notice' => $notice,
                 'csrf' => $_SESSION['gitpull_csrf'],
                 'base' => self::base(),
+                'dashboard_js_version' => hash_file('sha256', dirname(__DIR__) . '/public/js/dashboard.js'),
                 'glpi_root' => Paths::root(),
             ]
         );

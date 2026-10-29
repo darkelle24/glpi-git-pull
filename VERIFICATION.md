@@ -1,7 +1,7 @@
-# Vérification 0.2.3
+# Vérification 0.2.4
 
 - 21 fichiers PHP : syntaxe vérifiée avec PHP CLI 8.5.12 sous Windows.
-- Tableau de bord et formulaire : 38 vérifications réussies (dont les actions et lectures JSON sans redirection).
+- Tableau de bord et formulaire : 39 vérifications réussies (dont les actions et lectures JSON sans redirection).
 - Stockage et diagnostics : 26 vérifications réussies.
 - Chemins et scripts : 39 vérifications réussies.
 - Lanceur : 10 vérifications réussies, puis 11 avec proc_open désactivée.
@@ -30,3 +30,9 @@ journal inséré comme texte. L’URL reste inchangée après check et pull.
 Les tests PHP couvrent aussi le verrou actif, l’étape interrompue et le refus
 d’une action JSON invalide. Le stockage (26) et les chemins (39) passent toujours. Le test de liens symboliques reste à lancer
 sous Linux. Aucun déploiement ni commande Git distante effectué ici.
+
+Chargement JavaScript : URL versionnée par empreinte du fichier, initialisation
+après DOMContentLoaded et interception avant propagation aux formulaires GLPI.
+Test navigateur avec script externe chargé avant le DOM : clic Check et
+soumission sans submitter interceptés, URL inchangée, aucun gestionnaire
+de soumission global déclenché. Réponses serveur simulées.
