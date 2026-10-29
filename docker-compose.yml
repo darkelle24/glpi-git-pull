@@ -6,9 +6,7 @@ networks:
     internal: True
 services:
   glpi:
-    build:
-      dockerfile: https://raw.githubusercontent.com/darkelle24/glpi-git-pull/refs/heads/main/docker/Dockerfile
-      pull: True
+    image: ghcr.io/darkelle24/glpi-git-pull:latest
     container_name: glpi_app
     depends_on:
       glpi-db:
