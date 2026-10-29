@@ -15,6 +15,8 @@ services:
         condition: service_healthy
     environment:
       GITPULL_ALLOWED_ROOTS: /var/www/glpi/plugins:/var/glpi/plugins:/var/glpi/marketplace
+      GITPULL_REPO_URL: "https://github.com/darkelle24/glpi-git-pull.git"
+      GITPULL_REPO_BRANCH: "main"
       GLPI_DB_HOST: glpi-db
       GLPI_DB_NAME: glpi
       GLPI_DB_PASSWORD: TEMP

@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'docker/Dockerfile' # Déclenche le build automatiquement si vous modifiez CE Dockerfile
+      - 'docker/**' # Déclenche le build automatiquement si le Dockerfile OU le script change
   schedule:
     - cron: '0 2 * * *' # Vérification automatique tous les jours à 2h00 du matin
   workflow_dispatch: # Bouton manuel pour forcer le build depuis l'onglet Actions
