@@ -1,6 +1,6 @@
 # gitpull — GLPI 12.x
 
-Version 0.2.1 · GPL-3.0-or-later · Linux · Git · proc_open et POSIX.
+Version 0.2.2 · GPL-3.0-or-later · Linux · Git · proc_open et POSIX.
 Le plugin sépare le manifeste de configuration des états et journaux jetables.
 
 ## Installation et mise à jour
@@ -278,3 +278,22 @@ reste assurée par le service Docker. Déclarer les autres plugins dans le manif
 Références :
 [Dockerfile officiel](https://github.com/glpi-project/docker-images/blob/main/glpi/Dockerfile),
 [proc_open](https://www.php.net/manual/en/function.proc-open.php).
+
+## Tableau de bord et configuration repliable (0.2.2)
+
+Les actions Vérifier/Pull retournent au tableau de bord via une redirection 303
+hors du bloc d'interception d'erreurs. La sauvegarde d'un dépôt utilise le même
+principe. Cela évite d'intercepter par erreur la RedirectException de GLPI 12,
+qui pouvait afficher une liste vide ou présenter une sauvegarde comme échouée.
+
+Un message confirme l'action ou indique son échec/verrouillage. L'état d'erreur
+d'un seul dépôt n'empêche plus d'afficher les autres lignes ; les chemins
+calculés sont présents sur toutes les lignes.
+
+Le panneau Configuration et diagnostics est un élément details natif, replié
+à chaque chargement. Son titre garde le chemin du manifeste visible et signale
+un diagnostic à vérifier. Il s'ouvre et se ferme au clic ou au clavier, sans
+JavaScript supplémentaire. Le journal intérieur reste repliable séparément.
+
+Les tests tests/dashboard.php simulent le contrat de redirection GLPI et les
+résultats d'actions, sans lancer Git ni nécessiter de base GLPI.

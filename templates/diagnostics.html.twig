@@ -1,6 +1,12 @@
 {% autoescape 'html' %}
-<section class="card p-3 mb-3" aria-label="Emplacement et diagnostic de la configuration">
-  <h2>Configuration utilisée par gitpull</h2>
+<details class="card mb-3" aria-label="Emplacement et diagnostic de la configuration">
+  <summary class="p-3">
+    <strong>Configuration et diagnostics</strong> — <code>{{ diagnostic.path }}</code>
+    {% if diagnostic.validation_error or diagnostic.runtime.errors|length > 0 %}
+      <span class="badge bg-danger text-white">À vérifier</span>
+    {% endif %}
+  </summary>
+  <div class="px-3 pb-3">
   <p><strong>Fichier manifeste :</strong> <code>{{ diagnostic.path }}</code></p>
   {% if diagnostic.resolved and diagnostic.resolved != diagnostic.path %}
     <p>Chemin réel : <code>{{ diagnostic.resolved }}</code></p>
@@ -47,5 +53,6 @@
       <p>Aucun événement enregistré. Les sorties détaillées Git et des scripts figurent également dans « Journal et historique » sur chaque dépôt. Si le cache n’est pas accessible, consultez le journal d’erreurs PHP.</p>
     {% endfor %}
   </details>
-</section>
+  </div>
+</details>
 {% endautoescape %}

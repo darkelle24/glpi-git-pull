@@ -14,6 +14,7 @@ $r = [
     'check_interval' => 5, 'pull_interval' => 30,
 ];
 $revision = '';
+$saved = false;
 $resolvedTarget = null;
 try {
     // The browser revision must correspond to the same manifest snapshot.
@@ -55,12 +56,15 @@ try {
         $manifest->save($r, $str('revision'));
         \GlpiPlugin\Gitpull\Diagnostics::log('config_saved', 'Dépôt ' . $r['id'] . ' enregistré dans ' . \GlpiPlugin\Gitpull\Paths::manifest());
         $_SESSION['gitpull_notice'] = 'Configuration enregistrée dans ' . \GlpiPlugin\Gitpull\Paths::manifest();
-        Html::redirect(Web::base() . 'dashboard.php');
-        return;
+        $saved = true;
     }
 } catch (Throwable $e) {
     $error = $e->getMessage();
     \GlpiPlugin\Gitpull\Diagnostics::log($_SERVER['REQUEST_METHOD'] === 'POST' ? 'config_save_error' : 'config_read_error', $error);
+}
+if ($saved) {
+    // Html::redirect throws in GLPI 12: keep it outside the error handler.
+    Html::redirect(Web::base() . 'dashboard.php', 303);
 }
 try {
     $resolvedTarget = \GlpiPlugin\Gitpull\Paths::target($r);

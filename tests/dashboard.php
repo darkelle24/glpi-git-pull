@@ -1,0 +1,242 @@
+<?php
+/** Regression checks for real front controllers with a simulated GLPI redirect contract. */
+namespace {
+    final class TestRedirect extends \Exception
+    {
+        public function __construct(public string $url, public int $status)
+        {
+            parent::__construct('GLPI redirect');
+        }
+    }
+
+    final class TestPage
+    {
+        public static ?array $rendered = null;
+    }
+
+    final class Session
+    {
+        public static function checkRight($name, $right): void {}
+        public static function start(): void
+        {
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+        }
+    }
+
+    final class Plugin
+    {
+        public function isActivated($name): bool { return true; }
+    }
+
+    final class Html
+    {
+        public static function header(...$args): void {}
+        public static function footer(): void {}
+        public static function redirect($url, $status = 302): never
+        {
+            // Same control-flow contract as GLPI 12.
+            throw new TestRedirect($url, $status);
+        }
+    }
+}
+
+namespace Glpi\Exception\Http {
+    final class AccessDeniedHttpException extends \RuntimeException {}
+}
+
+namespace Glpi\Application\View {
+    final class TemplateRenderer
+    {
+        public static function getInstance(): self { return new self(); }
+        public function display($template, $data): void
+        {
+            \TestPage::$rendered = ['template' => $template, 'data' => $data];
+        }
+    }
+}
+
+namespace GlpiPlugin\Gitpull {
+    final class RepositoryManager
+    {
+        public static string $result = 'success';
+        public static int $calls = 0;
+
+        public function run(array $repo, string $action): bool
+        {
+            ++self::$calls;
+            if (self::$result === 'exception') {
+                throw new \RuntimeException('Échec de lancement simulé');
+            }
+            if (self::$result === 'busy') {
+                return false;
+            }
+            (new StateStore())->put($repo, [
+                'status' => self::$result === 'success' ? 'ready' : 'error',
+                'last_check' => time(), 'last_check_attempt' => time(),
+                'error' => self::$result === 'success' ? null : 'Git indisponible (simulation)',
+            ]);
+            return self::$result === 'success';
+        }
+    }
+}
+
+namespace {
+    use GlpiPlugin\Gitpull\AtomicJson;
+    use GlpiPlugin\Gitpull\Manifest;
+    use GlpiPlugin\Gitpull\Paths;
+    use GlpiPlugin\Gitpull\RepositoryManager;
+    use GlpiPlugin\Gitpull\StateStore;
+
+    $dir = sys_get_temp_dir() . '/gitpull-dashboard-' . bin2hex(random_bytes(6));
+    foreach (['', '/config', '/files', '/plugins', '/sessions'] as $suffix) {
+        mkdir($dir . $suffix, 0700);
+    }
+    define('GLPI_ROOT', $dir);
+    define('GLPI_CONFIG_DIR', $dir . '/config');
+    define('GLPI_VAR_DIR', $dir . '/files');
+    define('UPDATE', 2);
+    foreach (['AtomicJson', 'Paths', 'Manifest', 'StateStore', 'Process', 'Diagnostics', 'Web'] as $class) {
+        require dirname(__DIR__) . '/src/' . $class . '.php';
+    }
+    $CFG_GLPI = ['root_doc' => '/glpi-subpath'];
+    ini_set('session.save_path', $dir . '/sessions');
+    ini_set('session.use_cookies', '0');
+    ini_set('session.cache_limiter', '');
+    session_id('gitpull-test-' . bin2hex(random_bytes(8)));
+    Session::start();
+    $_SESSION['gitpull_csrf'] = 'test-csrf-token';
+
+    $checkCount = 0;
+    $check = static function (bool $ok, string $label) use (&$checkCount): void {
+        if (!$ok) {
+            throw new \RuntimeException($label);
+        }
+        ++$checkCount;
+    };
+    $request = static function (string $page, string $method = 'GET', array $post = [], array $get = []): array {
+        Session::start();
+        $_SERVER['REQUEST_METHOD'] = $method;
+        $_SERVER['PHP_SELF'] = '/plugins/gitpull/front/' . $page;
+        $_GET = $get;
+        $_POST = $post;
+        TestPage::$rendered = null;
+        try {
+            (static function (string $file): void { require $file; })(dirname(__DIR__) . '/front/' . $page);
+            return ['redirect' => null, 'view' => TestPage::$rendered];
+        } catch (TestRedirect $e) {
+            return ['redirect' => $e, 'view' => TestPage::$rendered];
+        }
+    };
+    $postAction = static fn(string $action, string $id = 'alpha'): array => [
+        'gitpull_csrf' => 'test-csrf-token', 'id' => $id, 'action' => $action,
+    ];
+    $repo = [
+        'id' => 'alpha', 'url' => 'https://github.com/example/alpha.git', 'path' => 'plugins/alpha',
+        'post_pull' => null, 'hard_pull' => false, 'auto_check' => true,
+        'auto_pull' => false, 'check_interval' => 5, 'pull_interval' => 30,
+    ];
+    $second = $repo;
+    $second['id'] = 'beta';
+    $second['url'] = 'https://github.com/example/beta.git';
+    $second['path'] = 'plugins/beta';
+    try {
+        AtomicJson::write(Paths::manifest(), ['version' => 1, 'repositories' => [$repo, $second]]);
+        $manifestHash = hash_file('sha256', Paths::manifest());
+        $page = $request('dashboard.php');
+        $check(count($page['view']['data']['rows']) === 2, 'Les deux dépôts doivent être affichés');
+
+        $response = $request('dashboard.php', 'POST', $postAction('check'));
+        $check($response['redirect']?->status === 303, 'Check doit rediriger, sans attraper la redirection');
+        $check($response['redirect']->url === '/glpi-subpath/plugins/gitpull/front/dashboard.php', 'Sous-chemin GLPI conservé');
+        $check($response['view'] === null, 'Aucun tableau vide rendu pendant le POST');
+        $page = $request('dashboard.php');
+        $check(count($page['view']['data']['rows']) === 2, 'Liste conservée après un check');
+        $check($page['view']['data']['rows'][0]['target'] === Paths::target($repo), 'Destination absolue de chaque ligne');
+        $check(str_contains($page['view']['data']['notice'], 'alpha'), 'Retour utilisateur après réussite');
+        $calls = RepositoryManager::$calls;
+        $page = $request('dashboard.php');
+        $check(RepositoryManager::$calls === $calls, 'Actualiser le GET ne relance pas Git');
+        $check($page['view']['data']['notice'] === null, 'Message de réussite consommé une fois');
+
+        RepositoryManager::$result = 'failure';
+        $response = $request('dashboard.php', 'POST', $postAction('pull'));
+        $check($response['redirect']?->status === 303, 'Pull en erreur redirige aussi');
+        $page = $request('dashboard.php');
+        $check(count($page['view']['data']['rows']) === 2, 'Liste conservée après échec de pull');
+        $check($page['view']['data']['error'] !== null, 'Échec annoncé après redirection');
+        $check($page['view']['data']['rows'][0]['state']['error'] !== null, 'Erreur Git visible sur la ligne');
+
+        RepositoryManager::$result = 'exception';
+        $response = $request('dashboard.php', 'POST', $postAction('check'));
+        $check($response['redirect']?->status === 303, 'Une exception backend revient au tableau de bord');
+        $page = $request('dashboard.php');
+        $check(count($page['view']['data']['rows']) === 2, 'Liste conservée après exception backend');
+        $check(str_contains($page['view']['data']['error'], 'simulé'), 'Cause backend conservée');
+
+        RepositoryManager::$result = 'busy';
+        $lock = (new StateStore())->lock($repo);
+        $response = $request('dashboard.php', 'POST', $postAction('pull'));
+        $page = $request('dashboard.php');
+        $check(count($page['view']['data']['rows']) === 2, 'Liste conservée si cible verrouillée');
+        $check($page['view']['data']['rows'][0]['running'], 'Verrou actif affiché');
+        flock($lock, LOCK_UN);
+        fclose($lock);
+
+        $calls = RepositoryManager::$calls;
+        $response = $request('dashboard.php', 'POST', $postAction('invalid'));
+        $check($response['redirect']?->status === 303 && RepositoryManager::$calls === $calls, 'Action invalide non exécutée');
+        $page = $request('dashboard.php');
+        $check(count($page['view']['data']['rows']) === 2 && $page['view']['data']['error'] !== null, 'Action invalide ne vide pas la liste');
+
+        $response = $request('dashboard.php', 'POST', $postAction('check', 'unknown'));
+        $check($response['redirect']?->status === 303 && RepositoryManager::$calls === $calls, 'Dépôt inconnu non exécuté');
+        $request('dashboard.php'); // Consume the feedback.
+
+        // A broken scalar cache must affect only its row, never the next repository.
+        $cache = Paths::cache() . '/' . hash('sha256', json_encode($repo, JSON_THROW_ON_ERROR)) . '.json';
+        file_put_contents($cache, 'null');
+        $page = $request('dashboard.php');
+        $check(count($page['view']['data']['rows']) === 2, 'Un cache illisible ne cache pas les autres dépôts');
+        $check($page['view']['data']['rows'][0]['blocked'], 'Ligne en erreur conservée');
+        $check($page['view']['data']['rows'][1]['repo']['id'] === 'beta', 'Le dépôt suivant reste affiché');
+        (new StateStore())->put($repo, []);
+
+        $check(hash_file('sha256', Paths::manifest()) === $manifestHash, 'Les actions ne modifient pas le manifeste');
+
+        $save = [
+            'gitpull_csrf' => 'test-csrf-token', 'revision' => (new Manifest())->revision(),
+            'id' => 'alpha', 'url' => $repo['url'], 'path' => $repo['path'],
+            'script_path' => '', 'script_type' => 'bash', 'auto_check' => 'on',
+            'check_interval' => '10', 'pull_interval' => '30',
+        ];
+        $response = $request('repository.form.php', 'POST', $save, ['id' => 'alpha']);
+        $check($response['redirect']?->status === 303, 'La sauvegarde ne capture pas sa redirection');
+        $check((new Manifest())->all(false)['alpha']['check_interval'] === 10, 'Réglage effectivement sauvegardé');
+        $page = $request('dashboard.php');
+        $check(count($page['view']['data']['rows']) === 2, 'Liste conservée après sauvegarde');
+        $check(str_contains($page['view']['data']['notice'], 'enregistrée'), 'Sauvegarde confirmée sans fausse erreur');
+
+        try {
+            $request('dashboard.php', 'POST', ['gitpull_csrf' => 'invalid', 'id' => 'alpha', 'action' => 'pull']);
+            throw new \LogicException('POST sans jeton valide accepté.');
+        } catch (\Glpi\Exception\Http\AccessDeniedHttpException) {
+            $check(RepositoryManager::$calls === $calls, 'Protection CSRF préservée');
+        }
+
+        echo "$checkCount vérifications du tableau de bord OK\n";
+    } finally {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_destroy();
+        }
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($iterator as $item) {
+            $item->isDir() ? rmdir($item->getPathname()) : unlink($item->getPathname());
+        }
+        rmdir($dir);
+    }
+}
