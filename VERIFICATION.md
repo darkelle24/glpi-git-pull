@@ -1,4 +1,4 @@
-# Vérification 0.2.2
+# Vérification 0.2.3
 
 - 21 fichiers PHP : syntaxe vérifiée avec PHP CLI 8.5.12 sous Windows.
 - Tableau de bord et formulaire : 38 vérifications réussies (dont les actions et lectures JSON sans redirection).
