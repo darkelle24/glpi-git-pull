@@ -10,6 +10,7 @@ use GlpiPlugin\Gitpull\StateStore;
 use GlpiPlugin\Gitpull\Web;
 
 Web::guard();
+$async = ($_GET['gitpull_async'] ?? '') === '1';
 
 // POST/Redirect/GET: GLPI's redirect exception must never enter a generic catch.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -43,7 +44,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($notice !== null) {
         $_SESSION['gitpull_notice'] = $notice;
     }
-    Html::redirect(Web::base() . 'dashboard.php', 303);
+    if (!$async) {
+        Html::redirect(Web::base() . 'dashboard.php', 303);
+    }
 }
 
 $error = $_SESSION['gitpull_action_error'] ?? null;
@@ -78,7 +81,10 @@ try {
                 $s['error'] = 'Exécution interrompue : verrou libéré sans résultat final.';
             }
             $row['state'] = $s;
-            $row['label'] = $labels[$status] ?? 'Non initialisé';
+            $row['label'] = $row['running']
+                ? ($s['activity'] ?? (in_array($status, ['checking', 'pulling'], true)
+                    ? $labels[$status] : 'Opération en cours…'))
+                : ($labels[$status] ?? 'Non initialisé');
             $row['next_check'] = $r['auto_check']
                 ? ($s['last_check_attempt'] ?? 0) + $r['check_interval'] * 60 : null;
             $row['next_pull'] = $r['auto_pull'] || !file_exists($row['target'])
@@ -96,5 +102,14 @@ try {
 } catch (Throwable $e) {
     $error = $e->getMessage();
     Diagnostics::log('dashboard_error', $error);
+}
+if ($async) {
+    $notice = $_SESSION['gitpull_notice'] ?? null;
+    unset($_SESSION['gitpull_notice']);
+    session_write_close();
+    header('Content-Type: application/json; charset=UTF-8');
+    header('Cache-Control: no-store');
+    echo json_encode(['rows' => $rows, 'error' => $error, 'notice' => $notice], JSON_THROW_ON_ERROR);
+    return;
 }
 Web::render('dashboard.html.twig', ['rows' => $rows, 'error' => $error]);

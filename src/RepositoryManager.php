@@ -31,6 +31,8 @@ final class RepositoryManager
             $repo = Manifest::validate($repo);
             $now = time();
             $state['status'] = $action === 'check' ? 'checking' : 'pulling';
+            $state['error'] = null;
+            $state['activity'] = 'Préparation du dépôt…';
             $state['started_at'] = $now;
             $state['last_action'] = $action;
             if ($action === 'check') {
@@ -42,6 +44,7 @@ final class RepositoryManager
             $path = $target;
             if (!file_exists($path)) {
                 $this->publicHost($repo['url']);
+                $this->activity($repo, $state, 'Clonage initial du dépôt…');
                 Paths::prepareParent($repo);
                 // Atomic publish: a failed clone never leaves a partial target.
                 $staging = dirname($path) . '/.gitpull-' . bin2hex(random_bytes(8));
@@ -49,7 +52,7 @@ final class RepositoryManager
                 if (file_exists($path) || !rename($staging, $path)) {
                     throw new \RuntimeException("Publication impossible. Clone temporaire : $staging");
                 }
-                $this->postPull($repo, $log);
+                $this->postPull($repo, $log, $state);
                 $state['last_pull_success'] = time();
                 $state['last_pull_attempt'] = $now;
                 $state['last_check'] = time();
@@ -64,7 +67,9 @@ final class RepositoryManager
                     throw new \RuntimeException('origin diffère du manifeste ; correction manuelle requise.');
                 }
                 $this->publicHost($repo['url']);
+                $this->activity($repo, $state, 'Récupération des mises à jour distantes…');
                 $log .= $this->process->git(['fetch', '--prune', '--no-tags', 'origin'], $path) . "\n";
+                $this->activity($repo, $state, 'Comparaison des versions locale et distante…');
                 $upstream = $this->process->git(['rev-parse', '--symbolic-full-name', '@{upstream}'], $path);
                 if (!str_starts_with($upstream, 'refs/remotes/origin/')) {
                     throw new \RuntimeException('Branche suivie origin requise (HEAD détachée interdite).');
@@ -75,6 +80,7 @@ final class RepositoryManager
                 $behind = (int) $this->process->git(['rev-list', '--count', 'HEAD..@{upstream}'], $path);
                 $state['update_available'] = $behind > 0;
                 if ($action === 'pull') {
+                    $this->activity($repo, $state, 'Mise à jour des fichiers du dépôt…');
                     if ($repo['hard_pull']) {
                         $log .= $this->process->git(['reset', '--hard', $remote], $path) . "\n";
                     } else {
@@ -82,7 +88,7 @@ final class RepositoryManager
                             '--no-recurse-submodules'], $path) . "\n";
                     }
                     // Retry scripts even when an earlier script failed after a successful Git update.
-                    $this->postPull($repo, $log);
+                    $this->postPull($repo, $log, $state);
                     $state['last_pull_success'] = time();
                     $state['update_available'] = false;
                 }
@@ -103,6 +109,7 @@ final class RepositoryManager
                 && empty($state['last_pull_success'])) {
                 $state['status'] = 'ready';
             }
+            unset($state['activity']);
             $state['finished_at'] = time();
             $state['log'] = substr($log, -32768);
             $history = $state['history'] ?? [];
@@ -118,12 +125,19 @@ final class RepositoryManager
         }
     }
 
-    private function postPull(array $repo, string &$log): void
+    private function activity(array $repo, array &$state, string $message): void
+    {
+        $state['activity'] = $message;
+        $this->store->put($repo, $state);
+    }
+
+    private function postPull(array $repo, string &$log, array &$state): void
     {
         $s = $repo['post_pull'];
         if ($s === null) {
             return;
         }
+        $this->activity($repo, $state, 'Exécution du script post-pull…');
         $script = Paths::script($repo);
         $binary = Process::binary($s['type']);
         $log .= $this->process->run([$binary, $script], Paths::target($repo), 300) . "\n";

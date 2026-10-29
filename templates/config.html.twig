@@ -3,7 +3,9 @@
 {% if notice %}<div class="alert alert-success">{{ notice }}</div>{% endif %}
 <div class="card p-3">
   <h1>gitpull — {{ editing ? 'Modifier le dépôt ' ~ repo.id : 'Ajouter un dépôt' }}</h1>
-  <p><a href="{{ base }}dashboard.php">Retour au tableau de bord</a></p>
+  <p><a class="btn btn-outline-secondary" href="{{ base }}dashboard.php">
+    <i class="ti ti-arrow-left" aria-hidden="true"></i><span class="ms-1">Retour à la liste des dépôts</span>
+  </a></p>
   {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
   <form method="post" id="gitpull-repository-form" data-glpi-root="{{ glpi_root }}">
     <input type="hidden" name="gitpull_csrf" value="{{ csrf }}">

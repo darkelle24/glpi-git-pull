@@ -10,6 +10,11 @@ plugin dans GLPI. Le bouton Paramètres du plugin et le menu Configuration >
 gitpull ouvrent le tableau de bord. Chaque ligne possède un bouton Modifier
 avec engrenage, qui ouvre une page dédiée front/repository.form.php?id=IDENTIFIANT.
 Le nom du dépôt n'est plus un lien d'édition.
+Les boutons de vérification et de pull actualisent la ligne sans recharger la page.
+L’état indique l’étape en cours et se rafraîchit toutes les deux secondes,
+y compris pour les opérations lancées par le cron. Sans JavaScript, les actions
+conservent leur fonctionnement par formulaire puis redirection.
+Le formulaire d’ajout et de modification propose un bouton de retour à la liste.
 
 Depuis 0.1.x, remplacer le code du plugin en conservant le manifeste externe.
 Les anciennes destinations absolues situées dans GLPI sont converties en

@@ -1,25 +1,26 @@
 {% autoescape 'html' %}
 {% include '@gitpull/diagnostics.html.twig' %}
 {% if notice %}<div class="alert alert-success">{{ notice }}</div>{% endif %}
-<div class="card p-3">
-  <h1>gitpull — Tableau de bord</h1>
+<div class="card p-3" data-gitpull-dashboard data-refresh-url="{{ base }}dashboard.php?gitpull_async=1">
+  <div data-gitpull-feedback role="status" aria-live="polite" hidden></div>
+  <h1>Plugin Git Gestion — Tableau de bord</h1>
   <p><a class="btn btn-primary" href="{{ base }}repository.form.php">Ajouter un dépôt</a></p>
   {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
   <div class="table-responsive"><table class="table">
     <thead><tr><th>Dépôt</th><th>État</th><th>Dernier check</th><th>Dernier pull réussi</th><th>Prochain check / pull</th><th>Actions</th></tr></thead>
     <tbody>
     {% for row in rows %}
-      <tr>
+      <tr data-gitpull-repository="{{ row.repo.id }}">
         <td><strong>{{ row.repo.id }}</strong><br>{{ row.repo.url }}<br><code>{{ row.target }}</code></td>
-        <td>{{ row.label }}{% if row.state.error|default(null) %}<div class="text-danger">{{ row.state.error }}</div>{% endif %}</td>
-        <td>{{ row.state.last_check|default(null) ? row.state.last_check|date('d/m/Y H:i:s') : 'Jamais' }}</td>
-        <td>{{ row.state.last_pull_success|default(null) ? row.state.last_pull_success|date('d/m/Y H:i:s') : 'Jamais' }}</td>
+        <td aria-live="polite"><span data-gitpull-status>{{ row.label }}</span>{% if row.state.error|default(null) %}<div class="text-danger" data-gitpull-error>{{ row.state.error }}</div>{% endif %}</td>
+        <td data-gitpull-last-check>{{ row.state.last_check|default(null) ? row.state.last_check|date('d/m/Y H:i:s') : 'Jamais' }}</td>
+        <td data-gitpull-last-pull>{{ row.state.last_pull_success|default(null) ? row.state.last_pull_success|date('d/m/Y H:i:s') : 'Jamais' }}</td>
         <td>
           Check : <span data-gitpull-due="{{ row.next_check ?? '' }}">{{ row.next_check ? 'Calcul…' : 'Désactivé' }}</span><br>
           Pull : <span data-gitpull-due="{{ row.next_pull ?? '' }}">{{ row.next_pull ? 'Calcul…' : 'Désactivé' }}</span>
         </td>
         <td>
-          <form method="post" action="{{ base }}dashboard.php">
+          <form method="post" action="{{ base }}dashboard.php" data-gitpull-action>
             <input type="hidden" name="gitpull_csrf" value="{{ csrf }}">
             <input type="hidden" name="id" value="{{ row.repo.id }}">
             <button class="btn btn-secondary" name="action" value="check" {{ (row.running or row.blocked) ? 'disabled' : '' }}>Vérifier maintenant</button>
@@ -30,10 +31,12 @@
             </a>
           </form>
           <details><summary>Journal et historique</summary>
-            <pre>{{ row.state.log|default('Aucune exécution.') }}</pre>
+            <pre data-gitpull-log>{{ row.state.log|default('Aucune exécution.') }}</pre>
+            <div data-gitpull-history>
             {% for event in row.state.history|default([])|reverse %}
               <p>{{ event.at|date('d/m/Y H:i:s') }} — {{ event.action }} — {{ event.status }} {{ event.error|default('') }}</p>
             {% endfor %}
+            </div>
           </details>
         </td>
       </tr>
@@ -42,7 +45,7 @@
     {% endfor %}
     </tbody>
   </table></div>
-  <p>Les compteurs indiquent une échéance ; l’exécution dépend du prochain passage du cron GLPI. Rechargez pour actualiser les états.</p>
+  <p>Les compteurs indiquent une échéance ; l’exécution dépend du prochain passage du cron GLPI. Les états s’actualisent automatiquement.</p>
 </div>
 <script src="{{ path('/plugins/gitpull/js/dashboard.js') }}"></script>
 {% endautoescape %}

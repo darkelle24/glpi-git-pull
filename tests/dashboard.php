@@ -122,11 +122,16 @@ namespace {
         $_GET = $get;
         $_POST = $post;
         TestPage::$rendered = null;
+        ob_start();
         try {
             (static function (string $file): void { require $file; })(dirname(__DIR__) . '/front/' . $page);
-            return ['redirect' => null, 'view' => TestPage::$rendered];
+            return ['redirect' => null, 'view' => TestPage::$rendered, 'json' => ob_get_clean()];
         } catch (TestRedirect $e) {
+            ob_end_clean();
             return ['redirect' => $e, 'view' => TestPage::$rendered];
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            throw $e;
         }
     };
     $postAction = static fn(string $action, string $id = 'alpha'): array => [
@@ -193,6 +198,38 @@ namespace {
         $response = $request('dashboard.php', 'POST', $postAction('check', 'unknown'));
         $check($response['redirect']?->status === 303 && RepositoryManager::$calls === $calls, 'Dépôt inconnu non exécuté');
         $request('dashboard.php'); // Consume the feedback.
+
+        RepositoryManager::$result = 'success';
+        $response = $request('dashboard.php', 'POST', $postAction('check'), ['gitpull_async' => '1']);
+        $data = json_decode($response['json'], true, 512, JSON_THROW_ON_ERROR);
+        $check($response['redirect'] === null && $response['view'] === null, 'Check asynchrone sans redirection ni page complète');
+        $check(count($data['rows']) === 2 && $data['rows'][0]['label'] === 'À jour', 'Résultat asynchrone et liste conservés');
+        $check(str_contains($data['notice'], 'alpha') && $data['error'] === null, 'Confirmation asynchrone');
+        $calls = RepositoryManager::$calls;
+        $response = $request('dashboard.php', 'GET', [], ['gitpull_async' => '1']);
+        $data = json_decode($response['json'], true, 512, JSON_THROW_ON_ERROR);
+        $check(RepositoryManager::$calls === $calls && count($data['rows']) === 2, 'Actualisation asynchrone sans relancer Git');
+
+        $store = new StateStore();
+        $store->put($repo, ['status' => 'checking', 'activity' => 'Récupération des mises à jour distantes…']);
+        $lock = $store->lock($repo);
+        $response = $request('dashboard.php', 'GET', [], ['gitpull_async' => '1']);
+        $data = json_decode($response['json'], true, 512, JSON_THROW_ON_ERROR);
+        $check($data['rows'][0]['running'] && $data['rows'][0]['label'] === 'Récupération des mises à jour distantes…', 'Étape en cours visible pendant le verrou');
+        flock($lock, LOCK_UN);
+        fclose($lock);
+        $response = $request('dashboard.php', 'GET', [], ['gitpull_async' => '1']);
+        $data = json_decode($response['json'], true, 512, JSON_THROW_ON_ERROR);
+        $check(!$data['rows'][0]['running'] && $data['rows'][0]['label'] === 'Erreur / Non disponible', 'Une étape interrompue ne reste pas affichée en cours');
+
+        RepositoryManager::$result = 'failure';
+        $response = $request('dashboard.php', 'POST', $postAction('pull'), ['gitpull_async' => '1']);
+        $data = json_decode($response['json'], true, 512, JSON_THROW_ON_ERROR);
+        $check($data['error'] !== null && $data['rows'][0]['state']['error'] !== null, 'Erreur asynchrone visible sans rechargement');
+        $calls = RepositoryManager::$calls;
+        $response = $request('dashboard.php', 'POST', $postAction('invalid'), ['gitpull_async' => '1']);
+        $data = json_decode($response['json'], true, 512, JSON_THROW_ON_ERROR);
+        $check($data['error'] !== null && RepositoryManager::$calls === $calls, 'Action asynchrone invalide refusée');
 
         // A broken scalar cache must affect only its row, never the next repository.
         $cache = Paths::cache() . '/' . hash('sha256', json_encode($repo, JSON_THROW_ON_ERROR)) . '.json';
