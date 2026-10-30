@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Keep the dashboard readable from another request while Git runs.
         session_write_close();
         if ((new RepositoryManager())->run($repos[$id], $action)) {
-            $notice = ($action === 'check' ? 'Vérification terminée : ' : 'Pull terminé : ') . $id;
+            $notice = ($action === 'check' ? 'Vérification terminée : ' : 'Download terminé : ') . $id;
         } else {
             $actionError = 'Action non terminée pour ' . $id . ' : consultez son état et son journal (erreur ou opération déjà en cours).';
         }
@@ -57,7 +57,7 @@ try {
     $store = new StateStore();
     $labels = [
         'ready' => 'À jour', 'update_available' => 'Nouvelle mise à jour disponible',
-        'pulling' => 'En cours de pull', 'checking' => 'Vérification en cours',
+        'pulling' => 'Download en cours', 'checking' => 'Vérification en cours',
         'error' => 'Erreur / Non disponible',
     ];
     foreach ($repos as $r) {

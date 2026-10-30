@@ -53,6 +53,7 @@ final class RepositoryManager
                     throw new \RuntimeException("Publication impossible. Clone temporaire : $staging");
                 }
                 $this->postPull($repo, $log, $state);
+                $this->managePlugin($repo, $log, $state);
                 $state['last_pull_success'] = time();
                 $state['last_pull_attempt'] = $now;
                 $state['last_check'] = time();
@@ -89,13 +90,14 @@ final class RepositoryManager
                     }
                     // Retry scripts even when an earlier script failed after a successful Git update.
                     $this->postPull($repo, $log, $state);
+                    $this->managePlugin($repo, $log, $state);
                     $state['last_pull_success'] = time();
                     $state['update_available'] = false;
                 }
             }
             $state['status'] = !empty($state['update_available']) ? 'update_available' : 'ready';
             $state['error'] = null;
-            Diagnostics::log('repository_success', $repo['id'] . ' : ' . $action . ' terminé.');
+            Diagnostics::log('repository_success', $repo['id'] . ' : ' . ($action === 'pull' ? 'download' : $action) . ' terminé.');
             return true;
         } catch (\Throwable $e) {
             $state['status'] = 'error';
@@ -137,10 +139,29 @@ final class RepositoryManager
         if ($s === null) {
             return;
         }
-        $this->activity($repo, $state, 'Exécution du script post-pull…');
+        $this->activity($repo, $state, 'Exécution du script après Download…');
         $script = Paths::script($repo);
         $binary = Process::binary($s['type']);
         $log .= $this->process->run([$binary, $script], Paths::target($repo), 300) . "\n";
+    }
+
+    private function managePlugin(array $repo, string &$log, array &$state): void
+    {
+        if (empty($repo['manage_plugin'])) {
+            return;
+        }
+        $directory = PluginLifecycle::directory($repo);
+        if ($directory === null) {
+            $log .= "Gestion GLPI ignorée : la cible n’est pas un plugin directement dans plugins/.\n";
+            return;
+        }
+        $helper = dirname(__DIR__) . '/bin/manage-plugin.php';
+        foreach (['install' => 'Installation / mise à jour du plugin GLPI…',
+            'activate' => 'Activation du plugin GLPI si nécessaire…'] as $step => $label) {
+            $this->activity($repo, $state, $label);
+            $log .= $this->process->run([Process::binary('php'), $helper, $directory, $step],
+                Paths::root(), 300) . "\n";
+        }
     }
 
     private function publicHost(string $url): void

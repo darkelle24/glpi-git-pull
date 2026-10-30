@@ -1,4 +1,4 @@
-# Vérification 0.2.6
+# Vérification 0.2.7
 
 - 21 fichiers PHP : syntaxe vérifiée avec PHP CLI 8.5.12 sous Windows.
 - Tableau de bord et formulaire : 51 vérifications réussies (dont les actions et lectures JSON sans redirection).
@@ -50,3 +50,18 @@ de la conservation d’un manifeste invalide. Paths est chargé depuis un dossie
 plugins/gitpull simulé pour vérifier l’autorisation de son dossier exact et le
 rejet de ses parents, sous-dossiers et de la racine GLPI. Syntaxe PHP vérifiée.
 Aucun pull du plugin réel effectué ; liens symboliques à vérifier sous Linux.
+
+Noms des dossiers GLPI : chemins 59, tableau de bord 53, stockage 33 contrôles OK.
+Le nom déduit est converti en minuscules sans signes ; un nom personnalisé
+invalide dans plugins/ est refusé sans modifier le manifeste. Le navigateur
+a vérifié la destination automatique, le message rouge avec règle et deux
+exemples, le blocage de soumission et la disparition de l’erreur après correction.
+Référence : https://glpi-developer-documentation.readthedocs.io/en/master/plugins/guidelines.html
+
+Download et gestion GLPI : 31 tests du cycle de vie et du pipeline réussis,
+55 du tableau de bord (dont case cochée/décochée), 59 des chemins, 33 du stockage
+et 10 du lanceur. Installation, mise à jour, activation, absence de réinstallation,
+configuration manuelle, erreurs, option absente/désactivée, ciblage direct dans
+plugins/, ordre download/script/install/activate et clonage initial couverts.
+Les services GLPI, Git et sous-processus sont simulés pour ces tests ; aucun
+plugin ni base GLPI réelle n’a été installé ou modifié dans cet environnement.

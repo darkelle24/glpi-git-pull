@@ -75,7 +75,7 @@ final class Manifest
         $r += ['path' => '']; // An absent/empty destination means plugins/<repository-name>.
         $keys = ['id', 'url', 'path', 'post_pull', 'hard_pull', 'auto_check',
             'auto_pull', 'check_interval', 'pull_interval'];
-        if (array_diff(array_keys($r), $keys) || array_diff($keys, array_keys($r))) {
+        if (array_diff(array_keys($r), array_merge($keys, ['manage_plugin'])) || array_diff($keys, array_keys($r))) {
             throw new \InvalidArgumentException('Champs manquants ou inconnus dans le dépôt.');
         }
         if (!is_string($r['id']) || !preg_match('/^[a-z][a-z0-9_-]{0,63}$/D', $r['id'])) {
@@ -103,6 +103,9 @@ final class Manifest
             if (!is_bool($r[$key])) {
                 throw new \InvalidArgumentException("$key doit être un booléen.");
             }
+        }
+        if (array_key_exists('manage_plugin', $r) && !is_bool($r['manage_plugin'])) {
+            throw new \InvalidArgumentException('manage_plugin doit être un booléen.');
         }
         foreach (['check_interval', 'pull_interval'] as $key) {
             if (!is_int($r[$key]) || $r[$key] < 1 || $r[$key] > 525600) {

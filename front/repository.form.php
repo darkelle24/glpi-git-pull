@@ -10,7 +10,7 @@ $manifest = new Manifest();
 $error = null;
 $r = [
     'id' => '', 'url' => '', 'path' => '', 'post_pull' => null,
-    'hard_pull' => false, 'auto_check' => true, 'auto_pull' => false,
+    'hard_pull' => false, 'auto_check' => true, 'auto_pull' => false, 'manage_plugin' => false,
     'check_interval' => 5, 'pull_interval' => 30,
 ];
 $revision = '';
@@ -56,6 +56,7 @@ try {
                 'id' => $str('id'), 'url' => $str('url'), 'path' => $str('path'),
                 'post_pull' => $script === '' ? null : ['type' => $str('script_type'), 'path' => $script],
                 'hard_pull' => isset($_POST['hard_pull']),
+                'manage_plugin' => isset($_POST['manage_plugin']),
                 'auto_check' => isset($_POST['auto_check']), 'auto_pull' => isset($_POST['auto_pull']),
                 'check_interval' => filter_var($str('check_interval'), FILTER_VALIDATE_INT),
                 'pull_interval' => filter_var($str('pull_interval'), FILTER_VALIDATE_INT),
@@ -84,4 +85,10 @@ try {
 } catch (Throwable) {
     // An empty URL on the add form cannot yet provide the default directory.
 }
-Web::render('config.html.twig', ['repo' => $r, 'revision' => $revision, 'error' => $error, 'resolved_target' => $resolvedTarget, 'editing' => is_string($_GET['id'] ?? null) && $_GET['id'] !== '']);
+$pathError = null;
+try {
+    \GlpiPlugin\Gitpull\Paths::validatePluginDirectory(\GlpiPlugin\Gitpull\Paths::normalizeTarget($r['path']));
+} catch (InvalidArgumentException $e) {
+    $pathError = $e->getMessage();
+}
+Web::render('config.html.twig', ['path_error' => $pathError, 'repo' => $r, 'revision' => $revision, 'error' => $error, 'resolved_target' => $resolvedTarget, 'editing' => is_string($_GET['id'] ?? null) && $_GET['id'] !== '']);

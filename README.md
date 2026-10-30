@@ -61,7 +61,15 @@ Exemple avec destination par défaut et script optionnel :
 ```
 
 Le champ path est optionnel. Absent ou égal à "", il donne
-GLPI_ROOT/plugins/<nom-du-dépôt>, ici GLPI_ROOT/plugins/monplugin.
+GLPI_ROOT/plugins/<nom-normalisé>, ici GLPI_ROOT/plugins/monplugin.
+Le nom est mis en minuscules et les signes sont retirés : Mon-Plugin_v2.0
+forme plugins/monpluginv20. Dans plugins/, le dossier principal doit contenir
+uniquement a-z et 0-9, sans espace ni accent : plugins/monplugin et
+plugins/inventaire2 sont valides. Un nom personnalisé invalide est bloqué
+à l’enregistrement et signalé en rouge sous le champ avec ces deux exemples.
+Les chemins personnalisés hors de plugins/ gardent leurs règles habituelles.
+Les anciens chemins explicites invalides restent lisibles pour être corrigés ;
+aucun dossier existant n’est renommé automatiquement.
 Si le nom interne d'un plugin GLPI diffère du nom de son dépôt, renseigner
 explicitement plugins/<nom-interne> pour respecter son dossier d'installation.
 Le suffixe .git est retiré du nom. id est l'identifiant de configuration,
@@ -155,7 +163,7 @@ Le cron lit le manifeste et :
 Les échéances partent de la dernière tentative, tandis que les dates de
 réussite sont conservées séparément. Les timers indiquent une échéance ;
 l'exécution dépend du prochain passage réel du cron.
-Les actions manuelles Vérifier/Pull s'exécutent dans la requête web, avec
+Les actions manuelles Vérifier/Download s'exécutent dans la requête web, avec
 libération de la session pour laisser une autre page consulter l'état.
 Adapter les délais PHP-FPM/proxy si nécessaire.
 
@@ -172,8 +180,8 @@ Un dossier existant non Git ou un origin différent n'est pas adopté.
 Une branche suivant origin est requise ; HEAD détachée refusée.
 
 Check : fetch puis comptage des commits distants absents de HEAD.
-Pull : git pull --ff-only --no-rebase ; une divergence bloque l'opération.
-Hard Pull : fetch puis git reset --hard sur le commit distant, avec perte des
+Download : git pull --ff-only --no-rebase ; une divergence bloque l'opération.
+Download forcé : fetch puis git reset --hard sur le commit distant, avec perte des
 modifications locales des fichiers suivis ; aucun git clean n'est lancé.
 
 Le script est exécuté après le clone et chaque pull réussi, même sans nouveau
@@ -190,6 +198,32 @@ détachés d'un script doivent être gérés par ce script ou la supervision Doc
 
 Les scripts et plugins clonés exécutent du code sous www-data. Réserver leur
 configuration et le droit config/UPDATE à des administrateurs de confiance.
+
+## Gestion du plugin après Download
+
+La case « Installer / mettre à jour et activer le plugin GLPI après Download »
+enregistre `manage_plugin: true` dans le dépôt. Elle est désactivée par défaut
+et les manifestes existants sans ce champ restent compatibles.
+
+Après un Download manuel, automatique ou un clonage initial, le script optionnel
+du dépôt est exécuté, puis la gestion GLPI s’applique si la cible est directement
+`plugins/nomplugin` et contient les fichiers d’un plugin. Les autres destinations
+et les dépôts ordinaires sont ignorés.
+
+Le plugin est détecté par GLPI ; son installation ou sa mise à jour est lancée
+seulement si son état le demande, puis son activation seulement s’il n’est pas
+déjà actif. Chaque étape démarre un processus PHP distinct sous www-data pour
+charger le code téléchargé. Les méthodes natives GLPI conservent leurs contrôles
+de compatibilité, de prérequis et de configuration.
+
+Une configuration manuelle requise bloque l’activation avec un message explicite.
+Un échec de script, d’installation ou d’activation laisse le dépôt en erreur,
+avec le détail dans son état et son journal. Un nouveau Download permet de
+réessayer. Aucun forçage de réinstallation d’un plugin déjà à jour n’est utilisé.
+
+Les libellés de l’interface utilisent Download ; les actions et champs internes
+`pull`, `auto_pull` et `pull_interval` sont conservés pour compatibilité.
+Référence : [cycle de vie natif GLPI](https://github.com/glpi-project/glpi/blob/main/src/Plugin.php).
 
 ## Diagnostics, cache et journaux
 
@@ -285,8 +319,8 @@ peuvent différer de ceux du serveur web : le bandeau montre le contexte web.
 Les interpréteurs sont détectés parmi /usr/local/bin, /usr/bin et /bin ;
 PHP n'est plus supposé être dans /usr/bin/php.
 
-Un path vide signifie toujours plugins/<nom-du-dépôt>. Pour le manifeste qui
-déclare le dépôt glpi-git-pull, cela donnerait plugins/glpi-git-pull, pas gitpull.
+Un path vide signifie plugins/<nom-normalisé>. Pour le manifeste qui
+déclare le dépôt glpi-git-pull, cela donne plugins/glpigitpull, pas gitpull.
 Pour gérer gitpull lui-même, renseigner explicitement sa destination : plugins/gitpull
 (ou le dossier réel de son installation). Le plugin doit être un clone Git indépendant
 avec son dossier .git et une origin correspondant à l’URL déclarée. Une installation

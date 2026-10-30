@@ -15,21 +15,26 @@
     <p><label class="form-label">Destination dans GLPI (optionnelle)</label>
       <div class="input-group"><span class="input-group-text">{{ glpi_root }}/</span>
         <input class="form-control" name="path" id="gitpull-path" aria-label="Destination relative à GLPI"
-               value="{{ repo.path }}" placeholder="plugins/nom-du-depot">
+               value="{{ repo.path }}" placeholder="plugins/monplugin" aria-describedby="gitpull-path-help gitpull-path-error" aria-invalid="{{ path_error ? 'true' : 'false' }}">
       </div>
-      <small class="form-text">Vide : plugins/&lt;nom du dépôt&gt;. Exemple : plugins/monplugin. Les retours « .. » sont interdits.</small>
+      <div id="gitpull-path-error" class="text-danger mt-1" role="alert" {{ path_error ? '' : 'hidden' }}>{{ path_error }}</div>
+      <small class="form-text" id="gitpull-path-help">Vide : nom du dépôt en minuscules, sans signes (Mon-Plugin_v2 → plugins/monpluginv2). Dans plugins/, uniquement a-z et 0-9. Exemples : plugins/monplugin et plugins/inventaire2.</small>
     </p>
     <p>Destination calculée : <code id="gitpull-target-preview">{{ resolved_target ?? 'Renseignez l’URL du dépôt.' }}</code></p>
-    <p><label>Script post-pull dans le dépôt (optionnel) <input class="form-control" name="script_path" id="gitpull-script"
+    <p><label>Script après Download dans le dépôt (optionnel) <input class="form-control" name="script_path" id="gitpull-script"
       value="{{ repo.post_pull.path|default('') }}" placeholder="scripts/install.sh"></label>
       <small class="form-text">Depuis le dossier cloné, sans « .. » ; un chemin absolu situé dans ce dépôt est aussi accepté. Le chemin absolu d’exécution est calculé automatiquement.</small>
       <label>Interpréteur <select name="script_type"><option value="bash">Bash</option><option value="php" {{ repo.post_pull.type|default('') == 'php' ? 'selected' : '' }}>PHP</option></select></label></p>
-    <p><label><input type="checkbox" name="hard_pull" {{ repo.hard_pull ? 'checked' : '' }}> Hard Pull (git reset --hard, abandon des modifications suivies)</label></p>
+    <p>
+      <label><input type="checkbox" name="manage_plugin" {{ repo.manage_plugin|default(false) ? 'checked' : '' }}> Installer / mettre à jour et activer le plugin GLPI après Download</label>
+      <small class="form-text">S’applique aux plugins placés directement dans plugins/. Les autres dépôts sont ignorés. Si une configuration manuelle est nécessaire, elle sera indiquée dans l’état.</small>
+    </p>
+    <p><label><input type="checkbox" name="hard_pull" {{ repo.hard_pull ? 'checked' : '' }}> Download forcé (git reset --hard, abandon des modifications suivies)</label></p>
     <p><label><input type="checkbox" name="auto_check" {{ repo.auto_check ? 'checked' : '' }}> Vérification auto</label></p>
-    <p><label><input type="checkbox" name="auto_pull" {{ repo.auto_pull ? 'checked' : '' }}> Pull auto</label></p>
+    <p><label><input type="checkbox" name="auto_pull" {{ repo.auto_pull ? 'checked' : '' }}> Download auto</label></p>
     <p><label>Fréquence de vérification (minutes) <input type="number" name="check_interval" min="1" max="525600" value="{{ repo.check_interval }}" required></label></p>
-    <p><label>Fréquence de pull (minutes) <input type="number" name="pull_interval" min="1" max="525600" value="{{ repo.pull_interval }}" required></label></p>
-    <p>Le script s’exécute sous www-data après chaque pull réussi et après le clonage initial. Sa configuration donne la capacité d’exécuter du code sur le serveur.</p>
+    <p><label>Fréquence de Download (minutes) <input type="number" name="pull_interval" min="1" max="525600" value="{{ repo.pull_interval }}" required></label></p>
+    <p>Le script s’exécute sous www-data après chaque Download réussi et après le clonage initial. Sa configuration donne la capacité d’exécuter du code sur le serveur.</p>
     <button class="btn btn-primary" type="submit">Enregistrer dans le manifeste</button>
   </form>
   {% if editing %}

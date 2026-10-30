@@ -7,7 +7,7 @@
   <p><a class="btn btn-primary" href="{{ base }}repository.form.php"><i class="ti ti-plus me-1" aria-hidden="true"></i>Ajouter un dépôt</a></p>
   {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
   <div class="table-responsive"><table class="table">
-    <thead class="bg-primary-lt"><tr><th>Dépôt</th><th>État</th><th>Dernier check</th><th>Dernier pull réussi</th><th>Prochain check / pull</th><th>Actions</th></tr></thead>
+    <thead class="bg-primary-lt"><tr><th>Dépôt</th><th>État</th><th>Dernier check</th><th>Dernier Download réussi</th><th>Prochain check / Download</th><th>Actions</th></tr></thead>
     <tbody>
     {% for row in rows %}
       <tr data-gitpull-repository="{{ row.repo.id }}">
@@ -31,14 +31,14 @@
         <td data-gitpull-last-pull>{{ row.state.last_pull_success|default(null) ? row.state.last_pull_success|date('d/m/Y H:i:s') : 'Jamais' }}</td>
         <td>
           Check : <span data-gitpull-due="{{ row.next_check ?? '' }}">{{ row.next_check ? 'Calcul…' : 'Désactivé' }}</span><br>
-          Pull : <span data-gitpull-due="{{ row.next_pull ?? '' }}">{{ row.next_pull ? 'Calcul…' : 'Désactivé' }}</span>
+          Download : <span data-gitpull-due="{{ row.next_pull ?? '' }}">{{ row.next_pull ? 'Calcul…' : 'Désactivé' }}</span>
         </td>
         <td>
           <form class="d-flex flex-wrap align-items-center gap-2 mb-2" method="post" action="{{ base }}dashboard.php" data-gitpull-action>
             <input type="hidden" name="gitpull_csrf" value="{{ csrf }}">
             <input type="hidden" name="id" value="{{ row.repo.id }}">
             <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2" name="action" value="check" {{ (row.running or row.blocked) ? 'disabled' : '' }}><i class="ti ti-search" aria-hidden="true"></i>Vérifier</button>
-            <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2" name="action" value="pull" {{ (row.running or row.blocked) ? 'disabled' : '' }}><i class="ti ti-download" aria-hidden="true"></i>Pull</button>
+            <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2" name="action" value="pull" {{ (row.running or row.blocked) ? 'disabled' : '' }}><i class="ti ti-download" aria-hidden="true"></i>Download</button>
             <a class="btn btn-outline-secondary" href="{{ base }}repository.form.php?id={{ row.repo.id|url_encode }}"
                title="Modifier le dépôt {{ row.repo.id }}" aria-label="Modifier le dépôt {{ row.repo.id }}">
               <i class="ti ti-settings" aria-hidden="true"></i><span class="ms-1">Modifier</span>
@@ -48,7 +48,7 @@
             <pre data-gitpull-log>{{ row.state.log|default('Aucune exécution.') }}</pre>
             <div data-gitpull-history>
             {% for event in row.state.history|default([])|reverse %}
-              <p>{{ event.at|date('d/m/Y H:i:s') }} — {{ event.action }} — {{ event.status }} {{ event.error|default('') }}</p>
+              <p>{{ event.at|date('d/m/Y H:i:s') }} — {{ event.action == 'pull' ? 'download' : event.action }} — {{ event.status }} {{ event.error|default('') }}</p>
             {% endfor %}
             </div>
           </details>

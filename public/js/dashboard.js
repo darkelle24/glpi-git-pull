@@ -66,7 +66,7 @@
                 const history = node.querySelector("[data-gitpull-history]");
                 history.replaceChildren(...(state.history || []).slice().reverse().map((event) => {
                     const p = document.createElement("p");
-                    p.textContent = date(event.at) + " — " + event.action + " — " + event.status + " " + (event.error || "");
+                    p.textContent = date(event.at) + " — " + (event.action === "pull" ? "download" : event.action) + " — " + event.status + " " + (event.error || "");
                     return p;
                 }));
                 busy(node, row.running || row.blocked || pending.has(row.repo.id));
@@ -112,7 +112,7 @@
                 ++epoch;
                 busy(node, true);
                 setStatus(node, button.value === "check"
-                    ? "Vérification du dépôt en cours…" : "Mise à jour du dépôt en cours…", "running");
+                    ? "Vérification du dépôt en cours…" : "Download du dépôt en cours…", "running");
                 const previousError = node.querySelector("[data-gitpull-error]");
                 if (previousError) previousError.hidden = true;
                 message("");

@@ -54,13 +54,22 @@ try {
     // An intentionally empty existing manifest must stay empty.
     AtomicJson::write(Paths::manifest(), ['version' => 1, 'repositories' => []]);
     $check($selfManifest->all() === [], 'Manifeste existant vide préservé');
+    $check(Paths::defaultTarget('https://github.com/example/Mon-Plugin_v2.0.git') === 'plugins/monpluginv20', 'Minuscules et suppression des signes dans le nom automatique');
+    $check(Paths::defaultTarget('https://github.com/example/-Plugin_.git') === 'plugins/plugin', 'Signes en début et fin retirés');
+    $reject(fn() => Paths::defaultTarget('https://github.com/example/---.git'));
+    foreach (['Monplugin', 'mon-plugin', 'mon_plugin', 'mon.plugin', 'mon plugin', 'monplügïn'] as $invalidName) {
+        $reject(fn() => Manifest::validate($repo + ['path' => 'plugins/' . $invalidName]));
+    }
+    $check(Manifest::validate($repo + ['path' => 'plugins/inventaire2'])['path'] === 'plugins/inventaire2', 'Lettres minuscules et chiffres acceptés');
+    $check(Manifest::validate($repo + ['path' => 'extensions/Mon-Plugin'])['path'] === 'extensions/Mon-Plugin', 'Règle de nom réservée aux dossiers de plugins');
+    $check(Manifest::validate($repo + ['path' => 'plugins/ancien-plugin'], false)['path'] === 'plugins/ancien-plugin', 'Ancien nom invalide lisible pour correction');
     $valid = Manifest::validate($repo);
     $check($valid['path'] === '', 'Champ path facultatif');
-    $check(Paths::target($valid) === $dir . '/plugins/my-plugin', 'Destination par défaut depuis le nom du dépôt');
+    $check(Paths::target($valid) === $dir . '/plugins/myplugin', 'Destination par défaut depuis le nom du dépôt');
     $check(Paths::target($repo + ['path' => 'extensions/team/plugin']) === $dir . '/extensions/team/plugin', 'Destination relative personnalisée');
     $legacy = Manifest::validate($repo + ['path' => $dir . '/plugins/legacy']);
     $check($legacy['path'] === 'plugins/legacy', 'Migration en mémoire du chemin absolu interne');
-    $check(Paths::defaultTarget('https://github.com/example/my-plugin') === 'plugins/my-plugin', 'URL sans suffixe .git');
+    $check(Paths::defaultTarget('https://github.com/example/my-plugin') === 'plugins/myplugin', 'URL sans suffixe .git');
 
     foreach (['../escape', 'plugins/../escape', './plugins/a', 'plugins//a', 'plugins/a/',
         '/etc/evil', $dir . '-outside/plugin', 'plugins/../../escape', 'plugins/./a',
@@ -81,7 +90,7 @@ try {
     $other = $repo;
     $other['id'] = 'other';
     $reject(fn() => $m->save($other, $m->revision())); // same inferred target
-    $other['path'] = 'plugins/my-plugin/nested';
+    $other['path'] = 'plugins/myplugin/nested';
     $reject(fn() => $m->save($other, $m->revision())); // overlapping target
     $other['path'] = 'plugins/other';
     $m->save($other, $m->revision());

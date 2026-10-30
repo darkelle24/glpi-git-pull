@@ -82,10 +82,23 @@ final class Paths
         $path = parse_url($url, PHP_URL_PATH);
         $name = is_string($path) ? basename(rtrim($path, '/')) : '';
         $name = preg_replace('/\.git$/i', '', $name);
-        if (!$name || !preg_match('/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/D', $name)) {
+        if (!$name || !preg_match('/^[a-zA-Z0-9._-]+$/D', $name)) {
             throw new \InvalidArgumentException('Impossible de déduire le nom du dépôt : indiquez une destination relative.');
         }
+        $name = preg_replace('/[^a-z0-9]/', '', strtolower($name));
+        if ($name === '') {
+            throw new \InvalidArgumentException('Le nom du dépôt ne contient aucune lettre ni chiffre : indiquez une destination personnalisée.');
+        }
         return 'plugins/' . $name;
+    }
+
+    public static function validatePluginDirectory(string $relative): void
+    {
+        $parts = explode('/', $relative);
+        if ($parts[0] === 'plugins' && isset($parts[1])
+            && !preg_match('/^[a-z0-9]+$/D', $parts[1])) {
+            throw new \InvalidArgumentException('Dans plugins/, le nom du dossier doit contenir uniquement des lettres minuscules (a-z) et des chiffres (0-9), tout attaché, sans espace, accent ni signe. Exemples : plugins/monplugin et plugins/inventaire2.');
+        }
     }
 
     public static function target(array $repo): string
@@ -125,6 +138,7 @@ final class Paths
         if ($relative === '') {
             throw new \InvalidArgumentException('La racine GLPI ne peut pas être une destination.');
         }
+        self::validatePluginDirectory($relative);
         $absolute = self::root() . '/' . $relative;
         self::noLinks($absolute);
         $self = str_replace('\\', '/', realpath(dirname(__DIR__)) ?: dirname(__DIR__));

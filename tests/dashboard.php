@@ -263,6 +263,27 @@ namespace {
             $check(RepositoryManager::$calls === $calls, 'Protection CSRF préservée');
         }
 
+        $manageSave = $save;
+        $manageSave['revision'] = (new Manifest())->revision();
+        $manageSave['manage_plugin'] = 'on';
+        $request('repository.form.php', 'POST', $manageSave, ['id' => 'alpha']);
+        $check((new Manifest())->all(false)['alpha']['manage_plugin'] === true, 'Gestion GLPI cochée enregistrée');
+        unset($manageSave['manage_plugin']);
+        $manageSave['revision'] = (new Manifest())->revision();
+        $request('repository.form.php', 'POST', $manageSave, ['id' => 'alpha']);
+        $check((new Manifest())->all(false)['alpha']['manage_plugin'] === false, 'Gestion GLPI décochée enregistrée');
+
+        $invalidPathSave = $save;
+        $invalidPathSave['revision'] = (new Manifest())->revision();
+        $invalidPathSave['path'] = 'plugins/Mon-Plugin';
+        $beforeInvalidPath = (new Manifest())->revision();
+        $response = $request('repository.form.php', 'POST', $invalidPathSave, ['id' => 'alpha']);
+        $check($response['redirect'] === null && $response['view']['data']['error'] !== null
+            && (new Manifest())->revision() === $beforeInvalidPath, 'Nom de dossier invalide bloqué sans modifier le manifeste');
+        $pathMessage = $response['view']['data']['path_error'];
+        $check(str_contains($pathMessage, 'minuscules') && str_contains($pathMessage, 'plugins/monplugin')
+            && str_contains($pathMessage, 'plugins/inventaire2'), 'Erreur sous le champ avec règle et deux exemples');
+
         $delete = [
             'gitpull_csrf' => 'test-csrf-token', 'action' => 'delete', 'id' => 'alpha',
             'revision' => (new Manifest())->revision(), 'confirmed' => '1',
