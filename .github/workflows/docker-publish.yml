@@ -7,8 +7,8 @@ on:
     paths:
       - 'docker/**' # Déclenche le build automatiquement si le Dockerfile OU le script change
   schedule:
-    - cron: '0 2 * * *' # Vérification automatique tous les jours à 2h00 du matin
-  workflow_dispatch: # Bouton manuel pour forcer le build depuis l'onglet Actions
+    - cron: '0 2 * * *' # Vérification quotidienne de l'image GLPI
+  workflow_dispatch:
     inputs:
       force_no_cache:
         description: 'Forcer le build sans aucun cache (Clean Build)'
@@ -31,6 +31,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
@@ -38,18 +41,50 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Check GLPI base image
+        id: base
+        shell: bash
+        run: |
+          base_digest=$(docker buildx imagetools inspect glpi/glpi:latest | awk '$1 == "Digest:" { print $2; exit }')
+          if [[ ! "$base_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Could not resolve the GLPI base image digest" >&2
+            exit 1
+          fi
+          echo "digest=$base_digest" >> "$GITHUB_OUTPUT"
+
+          if [[ "$GITHUB_EVENT_NAME" != schedule ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          published_image="$REGISTRY/$IMAGE_NAME:latest"
+          if docker pull "$published_image"; then
+            previous_digest=$(docker image inspect "$published_image" \
+              --format '{{ index .Config.Labels "org.opencontainers.image.base.digest" }}')
+            if [[ "$previous_digest" == "$base_digest" ]]; then
+              echo "GLPI base image unchanged; skipping build."
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          echo "GLPI base image changed or no previous image found; building."
+          echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Docker image
+        if: steps.base.outputs.changed == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./docker/Dockerfile # Chemin exact vers votre Dockerfile
+          file: ./docker/Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          pull: true 
+          build-args: |
+            GLPI_IMAGE=glpi/glpi@${{ steps.base.outputs.digest }}
+          labels: |
+            org.opencontainers.image.base.digest=${{ steps.base.outputs.digest }}
+          pull: true
           no-cache: ${{ github.event.inputs.force_no_cache == 'true' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

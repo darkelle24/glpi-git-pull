@@ -1,5 +1,5 @@
-
-FROM glpi/glpi:latest
+ARG GLPI_IMAGE=glpi/glpi:latest
+FROM ${GLPI_IMAGE}
 
 USER root
 
