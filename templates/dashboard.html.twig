@@ -1,4 +1,17 @@
 {% autoescape 'html' %}
+<style>
+  [data-gitpull-dashboard] [data-gitpull-feedback] { height: 3.5rem; overflow: auto; margin-bottom: .75rem; }
+  [data-gitpull-dashboard] [data-gitpull-feedback][hidden] { display: block; visibility: hidden; }
+  [data-gitpull-dashboard] .gitpull-repositories { min-width: 1200px; table-layout: fixed; }
+  [data-gitpull-dashboard] .gitpull-repositories th,
+  [data-gitpull-dashboard] .gitpull-repositories td { overflow-wrap: anywhere; vertical-align: top; }
+  [data-gitpull-dashboard] [data-gitpull-status-badge] { width: 100%; height: 4.5rem; overflow: auto; }
+  [data-gitpull-dashboard] [data-gitpull-error] { max-height: 4.5rem; overflow: auto; }
+  [data-gitpull-dashboard] [data-gitpull-action] { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  [data-gitpull-dashboard] [data-gitpull-action] .btn { justify-content: center; min-width: 0; }
+  [data-gitpull-dashboard] [data-gitpull-action] a.btn { grid-column: 1 / -1; }
+  [data-gitpull-dashboard] [data-gitpull-log] { max-height: 20rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
 {% include '@gitpull/diagnostics.html.twig' %}
 {% if notice %}<div class="alert alert-success">{{ notice }}</div>{% endif %}
 <div class="card p-3" data-gitpull-dashboard data-refresh-url="{{ base }}dashboard.php?gitpull_async=1">
@@ -6,7 +19,8 @@
   <h1><i class="ti ti-brand-git text-primary me-2" aria-hidden="true"></i>Plugin Git Gestion — Tableau de bord</h1>
   <p><a class="btn btn-primary" href="{{ base }}repository.form.php"><i class="ti ti-plus me-1" aria-hidden="true"></i>Ajouter un dépôt</a></p>
   {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
-  <div class="table-responsive"><table class="table">
+  <div class="table-responsive"><table class="table gitpull-repositories">
+    <colgroup><col style="width: 23%"><col style="width: 19%"><col style="width: 12%"><col style="width: 14%"><col style="width: 14%"><col style="width: 18%"></colgroup>
     <thead class="bg-primary-lt"><tr><th>Dépôt</th><th>État</th><th>Dernier check</th><th>Dernier Download réussi</th><th>Prochain check / Download</th><th>Actions</th></tr></thead>
     <tbody>
     {% for row in rows %}
