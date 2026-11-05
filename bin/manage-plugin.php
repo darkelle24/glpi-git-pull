@@ -24,7 +24,7 @@ try {
     $kernel = new \Glpi\Kernel\Kernel();
     $kernel->boot();
     global $DB;
-    if (!($DB instanceof \DBmysql) || !$DB->connected || !\Config::isLegacyConfigurationLoaded()) {
+    if (!($DB instanceof \DBmysql) || !$DB->connected) {
         throw new \RuntimeException('GLPI doit être installé et sa base accessible.');
     }
     foreach (['Paths', 'PluginLifecycle'] as $class) {

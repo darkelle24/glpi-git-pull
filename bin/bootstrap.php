@@ -18,7 +18,7 @@ require_once $glpiRoot . '/vendor/autoload.php';
 $kernel = new \Glpi\Kernel\Kernel();
 $kernel->boot();
 global $DB;
-if (!($DB instanceof \DBmysql) || !$DB->connected || !\Config::isLegacyConfigurationLoaded()) {
+if (!($DB instanceof \DBmysql) || !$DB->connected) {
     fwrite(STDERR, "GLPI doit être installé et sa base accessible avant le bootstrap.\n");
     exit(1);
 }
