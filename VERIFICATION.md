@@ -1,4 +1,24 @@
-# Vérification 0.2.7
+# Vérification 0.2.10
+
+Correction de l’environnement CLI : les chemins `GLPI_*_DIR` et le type
+d’environnement résolus par l’instance courante sont transmis à `proc_open`.
+Le processus conserve ainsi le volume de configuration Docker ; les mots de
+passe, tokens et variables SSH du parent ne sont pas hérités.
+Les erreurs des deux commandes CLI précisent le chemin de `config_db.php`,
+sa lisibilité et si la connexion SQL est absente ou a échoué.
+
+Validation PHP CLI 8.5.12 sous Windows : 12 contrôles de l’environnement
+(dont un vrai processus PHP chargeant un fichier de configuration de test),
+10 du lanceur, 33 du stockage, 59 des chemins, 31 du cycle de vie et 55 du
+tableau de bord. Syntaxe des cinq fichiers PHP modifiés ou ajoutés vérifiée.
+Le test CLI reproduit la configuration introuvable sans `GLPI_CONFIG_DIR`,
+puis vérifie son chargement avec l’environnement corrigé. Aucun accès SQL
+ni essai dans un conteneur GLPI réel ; liens symboliques à valider sous Linux.
+
+Références : [chemins de l’image Docker officielle](https://github.com/glpi-project/docker-images/blob/main/glpi/Dockerfile),
+[initialisation SQL du Kernel GLPI](https://github.com/glpi-project/glpi/blob/main/src/Glpi/Kernel/Listener/PostBootListener/InitializeDbConnection.php).
+
+## Vérifications précédentes (0.2.7)
 
 - 21 fichiers PHP : syntaxe vérifiée avec PHP CLI 8.5.12 sous Windows.
 - Tableau de bord et formulaire : 51 vérifications réussies (dont les actions et lectures JSON sans redirection).

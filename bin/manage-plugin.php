@@ -25,7 +25,10 @@ try {
     $kernel->boot();
     global $DB;
     if (!($DB instanceof \DBmysql) || !$DB->connected) {
-        throw new \RuntimeException('GLPI doit être installé et sa base accessible.');
+        $configFile = GLPI_CONFIG_DIR . '/config_db.php';
+        throw new \RuntimeException('Initialisation GLPI CLI impossible : configuration SQL '
+            . $configFile . (is_readable($configFile) ? ' lisible' : ' absente ou illisible')
+            . '; connexion SQL ' . ($DB instanceof \DBmysql ? 'échouée' : 'non initialisée') . '.');
     }
     foreach (['Paths', 'PluginLifecycle'] as $class) {
         require_once dirname(__DIR__) . '/src/' . $class . '.php';

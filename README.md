@@ -1,6 +1,6 @@
 # gitpull — GLPI 12.x
 
-Version 0.2.9 · GPL-3.0-or-later · Linux · Git · proc_open et POSIX.
+Version 0.2.10 · GPL-3.0-or-later · Linux · Git · proc_open et POSIX.
 Le plugin sépare le manifeste de configuration des états et journaux jetables.
 
 ## Installation et mise à jour
@@ -191,6 +191,11 @@ Un nouveau pull le rejoue. Le bootstrap seul ne rejoue pas les scripts des
 dépôts déjà présents.
 
 Git et scripts utilisent proc_open avec tableau d'arguments, sans shell.
+Les chemins `GLPI_*_DIR` résolus par GLPI sont transmis aux processus enfants,
+ainsi que `GLPI_ENVIRONMENT_TYPE`. Cela conserve notamment le volume Docker
+`GLPI_CONFIG_DIR=/var/glpi/config` pour les commandes PHP de gestion du plugin.
+Les variables contenant les identifiants SQL, tokens et réglages SSH ne sont
+pas héritées ; GLPI lit sa configuration SQL dans `config_db.php`.
 Git utilise /usr/bin/git ; environnement minimal, configuration globale/système,
 hooks et helpers d'identifiants désactivés. Timeout 120 s par commande Git,
 300 s par script. Le timeout couvre le processus direct ; les processus
@@ -267,6 +272,7 @@ Ne jamais purger les fichiers .lock pendant l'exécution des workers.
 php tests/storage.php
 php tests/paths.php
 php tests/process.php
+php tests/cli-environment.php
 # Sous www-data, dans le conteneur Linux :
 php tests/linux.php
 ```

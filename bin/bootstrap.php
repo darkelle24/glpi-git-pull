@@ -19,7 +19,10 @@ $kernel = new \Glpi\Kernel\Kernel();
 $kernel->boot();
 global $DB;
 if (!($DB instanceof \DBmysql) || !$DB->connected) {
-    fwrite(STDERR, "GLPI doit être installé et sa base accessible avant le bootstrap.\n");
+    $configFile = GLPI_CONFIG_DIR . '/config_db.php';
+    fwrite(STDERR, 'Initialisation GLPI CLI impossible : configuration SQL '
+        . $configFile . (is_readable($configFile) ? ' lisible' : ' absente ou illisible')
+        . '; connexion SQL ' . ($DB instanceof \DBmysql ? 'échouée' : 'non initialisée') . ".\n");
     exit(1);
 }
 spl_autoload_register(static function (string $class): void {

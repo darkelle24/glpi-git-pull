@@ -94,6 +94,29 @@ final class Process
         }
     }
 
+    /** Minimal child environment, including the paths resolved by the running GLPI instance. */
+    public static function environment(): array
+    {
+        $env = [
+            'PATH' => '/usr/local/bin:/usr/bin:/bin', 'HOME' => Paths::cache(), 'LANG' => 'C.UTF-8',
+            'GIT_TERMINAL_PROMPT' => '0', 'GIT_CONFIG_NOSYSTEM' => '1',
+            'GIT_CONFIG_GLOBAL' => '/dev/null', 'GIT_ALLOW_PROTOCOL' => 'https',
+            'GIT_CONFIG_COUNT' => '0',
+        ];
+        // Docker provides these paths through environment variables. Dropping them makes
+        // the CLI kernel look for config_db.php in GLPI_ROOT/config instead of the volume.
+        // Use resolved constants, which also cover local_define.php/downstream.php overrides.
+        foreach (get_defined_constants() as $name => $value) {
+            if (preg_match('/^GLPI_[A-Z0-9_]+_DIR$/D', $name) && is_string($value)) {
+                $env[$name] = $value;
+            }
+        }
+        if (defined('GLPI_ENVIRONMENT_TYPE')) {
+            $env['GLPI_ENVIRONMENT_TYPE'] = (string) GLPI_ENVIRONMENT_TYPE;
+        }
+        return $env;
+    }
+
     public function run(array $argv, ?string $cwd = null, int $timeout = 120): string
     {
         self::assertUser();
@@ -104,12 +127,7 @@ final class Process
         }
         self::validateCommand($argv, $cwd);
         // No shell, no inherited Git/SSH/token environment; no interactive prompt.
-        $env = [
-            'PATH' => '/usr/local/bin:/usr/bin:/bin', 'HOME' => Paths::cache(), 'LANG' => 'C.UTF-8',
-            'GIT_TERMINAL_PROMPT' => '0', 'GIT_CONFIG_NOSYSTEM' => '1',
-            'GIT_CONFIG_GLOBAL' => '/dev/null', 'GIT_ALLOW_PROTOCOL' => 'https',
-            'GIT_CONFIG_COUNT' => '0',
-        ];
+        $env = self::environment();
         $pipes = [];
         $warning = '';
         $proc = false;
