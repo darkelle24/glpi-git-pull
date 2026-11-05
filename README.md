@@ -1,6 +1,6 @@
 # gitpull — GLPI 12.x
 
-Version 0.2.2 · GPL-3.0-or-later · Linux · Git · proc_open et POSIX.
+Version 0.2.9 · GPL-3.0-or-later · Linux · Git · proc_open et POSIX.
 Le plugin sépare le manifeste de configuration des états et journaux jetables.
 
 ## Installation et mise à jour
